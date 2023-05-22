@@ -27,7 +27,7 @@ reference: Koren, S. et al. Canu: scalable and accurate long-read assembly via a
 * Arrow as implemented in GenomicConsensus (v?) \
 source: [https://github.com/PacificBiosciences/GenomicConsensus](https://github.com/PacificBiosciences/GenomicConsensus)
 
-* Pilon (V?) \
+* Pilon (V1.23) \
 parameters: using default parameters \
 reference: Walker, B. J. et al. Pilon: An Integrated Tool for Comprehensive Microbial Variant Detection and Genome Assembly Improvement. PLOS ONE 9, e112963, [doi:10.1371/journal.pone.0112963](https://doi.com/10.1371/journal.pone.0112963) (2014).
 
@@ -36,13 +36,13 @@ reference: Walker, B. J. et al. Pilon: An Integrated Tool for Comprehensive Micr
 * BWA mem (0.7.17) \
 reference: Li, H. & Durbin, R. Fast and accurate short read alignment with Burrows–Wheeler transform. Bioinformatics 25, 1754-1760, [doi:10.1093/bioinformatics/btp324](https://doi.org/10.1093/bioinformatics/btp324) (2009).
 
-* SALSA2 (V?)
+* SALSA2 (V2.3)
 200 iterations and GATC as the restriction site \
 reference: Ghurye, J. et al. Integrating Hi-C links with assembly graphs for chromosome-scale assembly. PLOS Computational Biology 15, e1007273, [doi:10.1371/journal.pcbi.1007273](https://doi.org/10.1371/journal.pcbi.1007273) (2019).
 
 ### Gap Fill
 
-* PBJelly (V?) \
+* PBJelly (V15.8.24) \
 parameters: `--minMatch 8 --minPctIdentity 80 --bestn 1 --nCandidates 20 --maxScore -500 --nproc 39 --noSplitSubreads` \
 reference: English, A. C. et al. Mind the gap: upgrading genomes with Pacific Biosciences RS long-read sequencing technology. PLoS One 7, e47768, [doi:10.1371/journal.pone.0047768](https://doi.org/10.1371/journal.pone.0047768) (2012).
 
@@ -52,7 +52,7 @@ reference: English, A. C. et al. Mind the gap: upgrading genomes with Pacific Bi
 filtered for MAPQ>=10 and marker sequences with mapping frequency of >1 were discarded \
 reference: Li, H. & Durbin, R. Fast and accurate short read alignment with Burrows–Wheeler transform. Bioinformatics 25, 1754-1760, [ [doi:10.1093/bioinformatics/btp324](https://doi.org/10.1093/bioinformatics/btp324) (2009).
 
-* STAR (V?)
+* STAR (V 2.7.10a)
 SAM files were then filtered for MAPQ >=10 and the reads that had both pairs mapping were kept \
 reference: Dobin, A. et al. STAR: ultrafast universal RNA-seq aligner. Bioinformatics 29, 15-21, [doi:10.1093/bioinformatics/bts635](https://doi.org/10.1093/bioinformatics/bts635) (2012).
 
@@ -71,11 +71,11 @@ reference: Durand, N. C. et al. Juicer Provides a One-Click System for Analyzing
 
 ### Genome Assembly Phase III
 
-* RaGOO (V?) \
+* RaGOO (V1.1) \
 parameters: `-C -t 43 -i 0.3` \
 reference: Alonge, M. et al. RaGOO: fast and accurate reference-guided scaffolding of draft genomes. Genome Biology 20, 224, [doi:10.1186/s13059-019-1829-6](https://doi.org/10.1186/s13059-019-1829-6) (2019).
 
-* LR-Gapcloser (V?) \
+* LR-Gapcloser (Version 3, 29 June 2007) \
 parameters: `-s p -t 40 -r 5` \
 reference: Xu, G.-C. et al. LR_Gapcloser: a tiling path-based gap closer that uses long reads to complete genome assembly. GigaScience 8, [doi:10.1093/gigascience/giy157](https://doi.org/10.1093/gigascience/giy157) (2018).
 
@@ -85,10 +85,10 @@ reference: Xu, G.-C. et al. LR_Gapcloser: a tiling path-based gap closer that us
 
 ### Sequence contamination assessment
 
-* Fastq-Screen (V?) \
+* Fastq-Screen (V0.4.14) \
 reference: Wingett, S. & Andrews, S. FastQ Screen: A tool for multi-genome mapping and quality control [version 2; peer review: 4 approved]. F1000Research 7, [doi:10.12688/f1000research.15931.2](https://doi.org/10.12688/f1000research.15931.2) (2018).
 
-* GC content distribution estimates (?)
+* GC content distribution estimates also done by Fastq-Screen
 
 ### Linkage map marker mapping
 
@@ -100,10 +100,10 @@ reference: Li, H. & Durbin, R. Fast and accurate short read alignment with Burro
 * BWA mem (EST mapping) (0.7.17) \
 source for EST sequences: [https://www.carrotomics.org/bio_data/291864](https://www.carrotomics.org/bio_data/291864)
 
-* StringTie (transcriptome mapping) (V?) \
+* StringTie (transcriptome mapping) (V1.3.5) \
 reference: Pertea, M. et al. StringTie enables improved reconstruction of a transcriptome from RNA-seq reads. Nature Biotechnology 33, 290-295, [doi:10.1038/nbt.3122](https://doi.org/10.1038/nbt.3122) (2015).
 
-* GMAP (IsoSeq mapping) (V?) \
+* GMAP (IsoSeq mapping) (V2021-08-25) \
 reference: Wu, T. D. & Watanabe, C. K. GMAP: a genomic mapping and alignment program for mRNA and EST sequences. Bioinformatics 21, 1859-1875, [doi:10.1093/bioinformatics/bti310](https://doi.org/10.1093/bioinformatics/bti310) (2005).
 
 
@@ -155,25 +155,25 @@ reference: Ou, S., Chen, J. & Jiang, N. Assessing genome assembly quality using 
 
 ### RNA-seq from 20 DH1 tissues
 
-* STAR (V?) \
+* STAR (V 2.7.10a) \
 reference: Dobin, A. et al. STAR: ultrafast universal RNA-seq aligner. Bioinformatics 29, 15-21, [doi:10.1093/bioinformatics/bts635](https://doi.org/10.1093/bioinformatics/bts635) (2012).
 
-* StringTie (V?) \
+* StringTie (V1.3.5) \
 source: [https://ccb.jhu.edu/software/stringtie/](https://ccb.jhu.edu/software/stringtie/) \
 reference: Pertea, M. et al. StringTie enables improved reconstruction of a transcriptome from RNA-seq reads. Nature Biotechnology 33, 290-295, [doi:10.1038/nbt.3122](https://doi.org/10.1038/nbt.3122) (2015).
 
 ### PacBio IsoSeq transcripts
 
-* IsoSeq3 (v?) \
+* IsoSeq3 (v3.3.0) \
 source: [https://github.com/PacificBiosciences/IsoSeq](https://github.com/PacificBiosciences/IsoSeq)
 
-* GMAP (v?) \
+* GMAP (V2021-08-25) \
 parameters: -f=2; and minimum identity and coverage=99% \
 reference: Wu, T. D. & Watanabe, C. K. GMAP: a genomic mapping and alignment program for mRNA and EST sequences. Bioinformatics 21, 1859-1875, [doi:10.1093/bioinformatics/bti310](https://doi.org/10.1093/bioinformatics/bti310) (2005).
 
 ### Gene Model Prediction with MAKER
 
-* MAKER (v?) \
+* MAKER (v3.01.03) \
 reference: Holt, C. & Yandell, M. MAKER2: an annotation pipeline and genome-database management tool for second-generation genome projects. BMC Bioinformatics 12, 491, [doi:10.1186/1471-2105-12-491](https://doi.org/10.1186/1471-2105-12-491) (2011).
 
 * AUGUSTUS (v2.5.5)
@@ -183,15 +183,15 @@ source: [https://github.com/KorfLab/SNAP](https://github.com/KorfLab/SNAP)
 
 ### Gene Model Prediction with GeMoMa
 
-* GeMoMa (v?) \
+* GeMoMa (v1.6) \
 reference: Keilwagen, J., Hartung, F. & Grau, J. GeMoMa: Homology-Based Gene Prediction Utilizing Intron Position Conservation and RNA-seq Data. Methods Mol Biol 1962, 161-177, [doi:10.1007/978-1-4939-9173-0_9](https://doi.org/10.1007/978-1-4939-9173-0_9) (2019).
 
 ### Gene Model Curation
 
-* GMAP (v?) \
+* GMAP (V2021-08-25) \
 reference: Wu, T. D. & Watanabe, C. K. GMAP: a genomic mapping and alignment program for mRNA and EST sequences. Bioinformatics 21, 1859-1875, [doi:10.1093/bioinformatics/bti310](https://doi.org/10.1093/bioinformatics/bti310) (2005).
 
-* GenomeThreader (v?) \
+* GenomeThreader (V2021-08-25) \
 Reference: Gremme, G., Brendel, V., Sparks, M. E. & Kurtz, S. Engineering a software tool for gene structure prediction in higher organisms. Information and Software Technology 47, 965-978, [doi:https://doi.org/10.1016/j.infsof.2005.09.005](https://doi.org/10.1016/j.infsof.2005.09.005) (2005).
 
 ### Gene annotation and quality verification
@@ -199,7 +199,7 @@ Reference: Gremme, G., Brendel, V., Sparks, M. E. & Kurtz, S. Engineering a soft
 * Blast2Go (v?) \
 reference: Conesa, A. et al. Blast2GO: a universal tool for annotation, visualization and analysis in functional genomics research. Bioinformatics 21, 3674-3676, [doi:10.1093/bioinformatics/bti610](https://doi.org/10.1093/bioinformatics/bti610) (2005).
 
-* PlantTFcat (v?) \
+* PlantTFcat (Downloaded on Dec 2020) \
 reference: Dai, X., Sinharoy, S., Udvardi, M. & Zhao, P. X. PlantTFcat: an online plant transcription factor and transcriptional regulator categorization and analysis tool. BMC Bioinformatics 14, 321, [doi:10.1186/1471-2105-14-321](https://doi.org/10.1186/1471-2105-14-321) (2013).
 
 * PRGdb (v3.0) \
@@ -213,7 +213,7 @@ reference: Nawrocki, E. P. & Eddy, S. R. Infernal 1.1: 100-fold faster RNA homol
 
 ### Isoform Analysis
 
-* Sqanti3 (v?) \
+* Sqanti3 (v4.1) \
 reference: Tardaguila, M. et al. SQANTI: extensive characterization of long-read transcript sequences for quality control in full-length transcriptome identification and quantification. Genome Res 28, 396-411, [doi:10.1101/gr.222976.117](https://doi.org/10.1101/gr.222976.117) (2018).
 
 
@@ -347,10 +347,10 @@ reference: Turner, S. qqman: an R package for visualizing GWAS results using Q-Q
 * TRIMMOMATIC (v0.36) \
 reference: Bolger, A. M., Lohse, M. & Usadel, B. Trimmomatic: a flexible trimmer for Illumina sequence data. Bioinformatics 30, 2114-2120, [doi:10.1093/bioinformatics/btu170](https://doi.org/10.1093/bioinformatics/btu170) (2014).
 
-* Rsubread (v?) in R 3.5.0 \
+* Rsubread (v2.14.1) in R 3.5.0 \
 reference: Liao, Y., Smyth, G. K. & Shi, W. The R package Rsubread is easier, faster, cheaper and better for alignment and quantification of RNA sequencing reads. Nucleic Acids Res 47, e47, [doi:10.1093/nar/gkz114](https://doi.org/10.1093/nar/gkz114) (2019).
 
-* FeatureCounts (v?) in R 3.5.0 \
+* FeatureCounts (v2.14.1) in R 3.5.0 \
 reference: Liao, Y., Smyth, G. K. & Shi, W. featureCounts: an efficient general purpose program for assigning sequence reads to genomic features. Bioinformatics 30, 923-930, [doi:10.1093/bioinformatics/btt656](https://doi.org/10.1093/bioinformatics/btt656) (2014).
 
 
