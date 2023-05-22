@@ -1,6 +1,9 @@
-# Population genomics identifies genetic signatures of carrot domestication and improvement and uncovers the origin of high carotenoid orange carrots \
+# Population genomics identifies genetic signatures of carrot domestication and improvement and uncovers the origin of high carotenoid orange carrots
+
 This repository contains scripts used for the following publication:
 ~Placeholder for reference to publication~
+
+
 
 ## Genome Assembly
 
@@ -66,7 +69,6 @@ reference: Durand, N. C. et al. Juicer Provides a One-Click System for Analyzing
 * A custom program was used to visualize and identify connections of PE sequences (PE BACs, 10, 20 and 40 kb MPE) to other scaffolds or contigs
 
 
-
 ### Genome Assembly Phase III
 
 * RaGOO (V?) \
@@ -76,6 +78,8 @@ reference: Alonge, M. et al. RaGOO: fast and accurate reference-guided scaffoldi
 * LR-Gapcloser (V?) \
 parameters: `-s p -t 40 -r 5` \
 reference: Xu, G.-C. et al. LR_Gapcloser: a tiling path-based gap closer that uses long reads to complete genome assembly. GigaScience 8, [doi:10.1093/gigascience/giy157](https://doi.org/10.1093/gigascience/giy157) (2018).
+
+
 
 ## Assembly Quality Verification
 
@@ -101,6 +105,8 @@ reference: Pertea, M. et al. StringTie enables improved reconstruction of a tran
 
 * GMAP (IsoSeq mapping) (V?) \
 reference: Wu, T. D. & Watanabe, C. K. GMAP: a genomic mapping and alignment program for mRNA and EST sequences. Bioinformatics 21, 1859-1875, [doi:10.1093/bioinformatics/bti310](https://doi.org/10.1093/bioinformatics/bti310) (2005).
+
+
 
 ## Repetitive Sequence Annotation
 
@@ -142,6 +148,8 @@ reference: Xiong, W., He, L., Lai, J., Dooner, H. K. & Du, C. HelitronScanner un
 
 * LTR Assembly Index (LAI) \
 reference: Ou, S., Chen, J. & Jiang, N. Assessing genome assembly quality using the LTR Assembly Index (LAI). Nucleic Acids Research 46, e126-e126, [doi:10.1093/nar/gky730](https://doi.org/10.1093/nar/gky730) (2018).
+
+
 
 ## Gene Prediction and Genome Annotation
 
@@ -208,11 +216,15 @@ reference: Nawrocki, E. P. & Eddy, S. R. Infernal 1.1: 100-fold faster RNA homol
 * Sqanti3 (v?) \
 reference: Tardaguila, M. et al. SQANTI: extensive characterization of long-read transcript sequences for quality control in full-length transcriptome identification and quantification. Genome Res 28, 396-411, [doi:10.1101/gr.222976.117](https://doi.org/10.1101/gr.222976.117) (2018).
 
+
+
 ## Resequencing and Phenotyping
 
 ### Phenotyping
 
 * Scripts and datafiles related to phenotyping can be found in [/phenotype/](/phenotype/)
+
+
 
 ## Variant Detection
 
@@ -228,9 +240,11 @@ example joint genotyping script for one region: [variant_detection/template.join
 reference: McKenna, A. et al. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome Res 20, 1297-1303, [doi:10.1101/gr.107524.110](https://doi.org/10.1101/gr.107524.110) (2010).
 
 ### Genotyping the Y2 insertion
- \
+
 * A heavily modified version of [TRACKPOSON](https://github.com/Markestine/TRACKPOSON) \
 scripts: [/y2_genotyping/](/y2_genotyping/)
+
+
 
 ## Population structure, phylogenetic, PCA and gene flow analysis
 
@@ -250,8 +264,10 @@ Zheng, X. et al. A high-performance computing toolset for relatedness and princi
 
 ### Gene Flow
 
-* TreeMix (v?) \
+* TreeMix (v1.13) \
 reference: Fitak, R. R. OptM: estimating the optimal number of migration edges on population trees using Treemix. Biology Methods and Protocols 6, bpab017, [doi:10.1093/biomethods/bpab017](https://doi.org/doi:10.1093/biomethods/bpab017) (2021).
+
+
 
 ## Genetic diversity, FST, linkage disequilibrium and demographic analysis
 
@@ -277,6 +293,8 @@ parameters and code: Code for the estimation of effective population size and di
 source: [https://github.com/popgenmethods/smcpp](https://github.com/popgenmethods/smcpp) \
 reference: Terhorst, J., Kamm, J. A. & Song, Y. S. Robust and scalable inference of population history from hundreds of unphased whole genomes. Nat Genet 49, 303-309, [doi:10.1038/ng.3748](https://doi.org/10.1038/ng.3748) (2017).
 
+
+
 ## Genome-Wide Scans for Signatures of Selection
 
 ### Region Identification
@@ -287,9 +305,11 @@ reference: Danecek, P. et al. The variant call format and VCFtools. Bioinformati
 * XP-CLR (v1.0) \
 reference: Chen, H., Patterson, N. & Reich, D. Population differentiation as a test for selective sweeps. Genome Research 20, 393-402 (2010).
 
+
+
 ## GWA analysis
 
-### GWA Analysis \
+### GWA Analysis
 Scripts and parameters for this section are here: [/genotype/](/genotype/)
 
 * vcftools (v0.1.16) \
@@ -302,21 +322,23 @@ reference: Browning, S. R. & Browning, B. L. Rapid and Accurate Haplotype Phasin
 * Tassel (v5) \
 reference: Bradbury, P. J. et al. TASSEL: software for association mapping of complex traits in diverse samples. Bioinformatics 23, 2633-2635, [doi:10.1093/bioinformatics/btm308](https://doi.org/10.1093/bioinformatics/btm308) (2007).
 
-* GAPIT (v?) \
+* GAPIT (custom modified version of 2020.10.24 Gapit 3.0) \
 Script: [GWA/GWA.R.txt](GWA/GWA.R.txt) \
 reference: Lipka, A. E. et al. GAPIT: genome association and prediction integrated tool. Bioinformatics 28, 2397-2399, [doi:10.1093/bioinformatics/bts444](https://doi.org/10.1093/bioinformatics/bts444) (2012).
 
 ### Significance Threshold
 
-* simpleM (v?) \
+* simpleM (version July 2, 2009) \
 script: [GWA/simpleMSigThreshold.R.txt](GWA/simpleMSigThreshold.R.txt) \
 reference: Gao, X., Starmer, J. & Martin, E. R. A multiple testing correction method for genetic association studies using correlated single nucleotide polymorphisms. Genet Epidemiol 32, 361-369, [doi:10.1002/gepi.20310](https://doi.org/10.1002/gepi.20310) (2008).
 
 ### Manhattan Plots
 
-* qqman (v?) \
+* qqman (v0.1.8) \
 script: [GWA/qqman4Manhattanplots.R](GWA/qqman4Manhattanplots.R) \
 reference: Turner, S. qqman: an R package for visualizing GWAS results using Q-Q and manhattan plots.  (2014).
+
+
 
 ## RNAseq analysis for Or and Y2
 
@@ -330,6 +352,8 @@ reference: Liao, Y., Smyth, G. K. & Shi, W. The R package Rsubread is easier, fa
 
 * FeatureCounts (v?) in R 3.5.0 \
 reference: Liao, Y., Smyth, G. K. & Shi, W. featureCounts: an efficient general purpose program for assigning sequence reads to genomic features. Bioinformatics 30, 923-930, [doi:10.1093/bioinformatics/btt656](https://doi.org/10.1093/bioinformatics/btt656) (2014).
+
+
 
 ## Genetic effect and interaction analysis
 
