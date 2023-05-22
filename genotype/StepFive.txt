@@ -1,0 +1,11 @@
+module load beagle-geno
+module load java
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C1.Head.vcf    out=Dauc.C1.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C2.Head.vcf    out=Dauc.C2.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C3.Head.vcf    out=Dauc.C3.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C4.Head.vcf    out=Dauc.C4.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C5.Head.vcf    out=Dauc.C5.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C6.Head.vcf    out=Dauc.C6.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C7.Head.vcf    out=Dauc.C7.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C8.Head.vcf    out=Dauc.C8.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true
+java -Xmx1494G -jar beagle.16May19.351.jar gt=Dauc.C9.Head.vcf    out=Dauc.C9.imp.vcf    nthreads=216     burnin=5     iterations=10     window=10     ap=true     gp=true

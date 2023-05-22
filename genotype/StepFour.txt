@@ -1,0 +1,24 @@
+# To make downstream analyses go faster split genotype file by chromosome
+# split vcf file by chromosome
+tabix -p vcf KevG.V3.filt2.hetna.vcf.gz
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr1  > Dauc.C1.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr2  > Dauc.C2.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr3  > Dauc.C3.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr4  > Dauc.C4.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr5  > Dauc.C5.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr6  > Dauc.C6.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr7  > Dauc.C7.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr8  > Dauc.C8.vcf
+tabix KevG.V3.filt2.hetna.vcf.gz DCARv3_Chr9  > Dauc.C9.vcf
+
+# Add a header back to each file
+# Header.vcf was taken from V3.F1.Imp.F2.vcf.gz
+cat Header.vcf Dauc.C1.vcf > Dauc.C1.Head.vcf
+cat Header.vcf Dauc.C2.vcf > Dauc.C2.Head.vcf
+cat Header.vcf Dauc.C3.vcf > Dauc.C3.Head.vcf
+cat Header.vcf Dauc.C4.vcf > Dauc.C4.Head.vcf
+cat Header.vcf Dauc.C5.vcf > Dauc.C5.Head.vcf
+cat Header.vcf Dauc.C6.vcf > Dauc.C6.Head.vcf
+cat Header.vcf Dauc.C7.vcf > Dauc.C7.Head.vcf
+cat Header.vcf Dauc.C8.vcf > Dauc.C8.Head.vcf
+cat Header.vcf Dauc.C9.vcf > Dauc.C9.Head.vcf

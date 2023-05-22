@@ -1,0 +1,12 @@
+module load vcftools/0.1.16
+module load tassel5/
+module load tabix/
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C1.imp.filtx2.vcf.gz -export Dauc.C1 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C2.imp.filtx2.vcf.gz -export Dauc.C2 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C3.imp.filtx2.vcf.gz -export Dauc.C3 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C4.imp.filtx2.vcf.gz -export Dauc.C4 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C5.imp.filtx2.vcf.gz -export Dauc.C5 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C6.imp.filtx2.vcf.gz -export Dauc.C6 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C7.imp.filtx2.vcf.gz -export Dauc.C7 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C8.imp.filtx2.vcf.gz -export Dauc.C8 -exportType HapmapDiploid
+run_pipeline.pl -Xmx1494G  -vcf ../Filter2/Dauc.C9.imp.filtx2.vcf.gz -export Dauc.C9 -exportType HapmapDiploid

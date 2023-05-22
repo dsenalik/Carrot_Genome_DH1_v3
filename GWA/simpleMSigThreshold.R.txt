@@ -1,0 +1,361 @@
+ Load packages
+Pckg.Lst <-c("vroom","readxl","tidyverse", "bigmemory", "biganalytics", "parallel", "MASS")
+      package.check <- lapply(
+        Pckg.Lst,
+        FUN = function(x) {
+        if (!require(x, character.only = TRUE)) {
+          install.packages(x, dependencies = TRUE)
+        library(x, character.only = TRUE)}})
+#============================================================================
+# Meff through the PCA approach
+# use a part of the eigen values according to how much percent they contribute
+# to the total variation
+Meff_PCA <- function(eigenValues, percentCut){
+  totalEigenValues <- sum(eigenValues)
+  myCut <- percentCut*totalEigenValues
+  num_Eigens <- length(eigenValues)
+  myEigenSum <- 0
+  index_Eigen <- 0
+
+  for(i in 1:num_Eigens){
+    if(myEigenSum <= myCut){
+      myEigenSum <- myEigenSum + eigenValues[i]
+      index_Eigen <- i
+    }
+    else{
+      break
+    }
+  }
+  return(index_Eigen)
+}
+
+
+
+#============================================================================
+# infer the cutoff => Meff
+inferCutoff <- function(dt_My){
+  CLD <- cor(dt_My)
+  eigen_My <- eigen(CLD)
+
+  # PCA approach
+  eigenValues_dt <- abs(eigen_My$values)
+  Meff_PCA_gao <- Meff_PCA(eigenValues_dt, PCA_cutoff)
+  return(Meff_PCA_gao)
+}
+
+#============================================================================
+PCA_cutoff <- 0.995
+
+# Combine all numeric input genotypic data
+C1.dat <- vroom("../GAPIT.Num.Con/Chr01/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(C1.dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr01
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr02/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr02
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr03/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr03
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr04/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr04
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr05/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr05
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr06/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr06
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr07/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr07
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr08/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr08
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+
+
+# Combine all numeric input genotypic data
+dat <- vroom("../GAPIT.Num.Con/Chr09/GAPIT.Genotype.Numerical.txt", col_names=T)
+dat.2 <- as.data.frame(t(dat))
+dat.2 <- dat.2[-1,]
+dat.2 <- dat.2[,-1]
+dat.3 <- mutate_if(dat.2, is.factor, ~ as.numeric(levels(.x))[.x])
+dat.3 <- dat.3[,-1]
+dat.4 <- data.matrix(dat.3) #only for largest file
+dat.5 <- scale(dat.4) #only for largest file
+mySNP_nonmissing <- dat.5  #only for largest file change to dat.5 here Method2/ information
+numLoci <- length(mySNP_nonmissing[, 1])
+simpleMeff <- NULL
+fixLength <- 133
+i <- 1
+myStart <- 1
+myStop <- 1
+while(myStop < numLoci){
+  myDiff <- numLoci - myStop
+  if(myDiff <= fixLength) break
+
+  myStop <- myStart + i*fixLength - 1
+  snpInBlk <- t(mySNP_nonmissing[myStart:myStop, ])
+  MeffBlk <- inferCutoff(snpInBlk)
+  simpleMeff <- c(simpleMeff, MeffBlk)
+  myStart <- myStop+1
+}
+snpInBlk <- t(mySNP_nonmissing[myStart:numLoci, ])
+MeffBlk <- inferCutoff(snpInBlk)
+simpleMeff <- c(simpleMeff, MeffBlk)
+
+#Chr09
+cat("Total number of SNPs is: ", numLoci, "\n")
+cat("Inferred Meff is: ", sum(simpleMeff), "\n")
+#============================================================================
+# end

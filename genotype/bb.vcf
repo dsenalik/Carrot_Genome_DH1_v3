@@ -1,0 +1,2777 @@
+#!/usr/bin/perl
+#----------------------------------------------------------#
+#        Author: Douglas Senalik dsenalik@wisc.edu         #
+#----------------------------------------------------------#
+# "Black Box" program series
+=bb
+Processing of vcf (Variant Call Format) files
+=cut bb
+use strict;
+use warnings;
+use Getopt::Long;      # for getting command line parameters
+
+
+
+############################################################
+# configuration variables
+############################################################
+my %het = (AC=>'M', AG=>'R', AT=>'W', CA=>'M', CG=>'S', CT=>'Y',
+           GA=>'R', GC=>'S', GT=>'K', TA=>'W', TC=>'Y', TG=>'K');
+my $defaultgapchar = "n";
+my $defaultmincoverage = 1;
+my $gffheader = "##gff-version 3\n";
+my $defaultgffsource = "vcf";
+my $defaultgfffeature = "auto";
+my @autofeature = ( 'SNP', 'Ins', 'Del', 'MultiAllele' );
+my $gzipbin = "gzip";
+my $bgzipbin = "bgzip";
+my $defaultminratio = 0.3;
+my $defaultmaxratio = 1 - $defaultminratio;
+my $defaultmaxinsertion = 50000;
+my $defaultfilterid = 'FAIL';
+my $defaultfilterdescription = 'Failed unspecified filter';
+
+my @abhmtxt = ( 'Allele%3DRef', 'Allele%3DAlt', 'Allele%3DHet', 'Allele%3DMissing' );  #used in task_gff()
+my $defaultwindowsize = 10000;
+my $defaultvariantsperwindow = 1;
+my $defaultflank = 100;
+
+
+
+############################################################
+# global variables
+############################################################
+my $ansiup    = "\033[1A";  # terminal control
+(my $prognopath = $0) =~ s/^.*[\/\\]//;
+
+
+
+############################################################
+# command line parameters
+############################################################
+my $infilename;          # input file name
+my $ref;                 # input reference FASTA file
+my $outfilename;         # output file name
+my $task;
+my $fastq;
+my $gapchar      = $defaultgapchar;
+my $mincoverage  = $defaultmincoverage;
+my @newid;
+my $wrap;
+my $makeindex;
+# --task=gff
+my $gffsource    = $defaultgffsource;
+my $gfffeature   = $defaultgfffeature;
+my $gfftype      = '';
+my $maxmissing   = 100;  # percent, maximum number of missing genotypes
+my $maxinsertion = $defaultmaxinsertion;
+my $minalt       = 0;    # percent, minimum number of homozygous alternate genotypes
+my $nomultalt;  # disallow more than one alternate allele
+# --task=order
+my $keyfile;
+my $lenient;  # drop samples not in --keyfile or allow extra names in --keyfile
+# --task=grep
+my @greps;
+my $v;
+# --task=het
+my $minratio = $defaultminratio;
+my $maxratio = $defaultmaxratio;
+my $tomissing    = 0;
+# --task=matrix
+my $counts;
+my $summary;
+# --task=joinmap
+my $uppercase = 0;
+my $twophase = 0;
+my $aref;
+my $missingcode = '.';
+# --task=linkage
+my $locinfofile;
+my $filtchr;
+# --task=downsample
+my $windowsize = $defaultwindowsize;
+my $variantsperwindow = $defaultvariantsperwindow;
+# --task=parent
+my @parentids;
+# --task=site
+my $lookupfile;
+my $column = 1;
+my $filterid = $defaultfilterid;
+my $filterdescription = $defaultfilterdescription;
+# --task=kaspar
+my $flank = $defaultflank;
+# --task=qualitystats
+my $sites;
+# all tasks
+my $help         = 0;    # print help and exit
+my $quiet        = 0;    # only show errors
+my $debug        = 0;    # print extra debugging information
+GetOptions (
+            "infile=s"       => \$infilename,        # string
+            "outfile=s"      => \$outfilename,       # string
+            "locusinfofile=s" => \$locinfofile,      # string
+            "lookupfile=s"   => \$lookupfile,        # string
+            "reference=s"    => \$ref,               # string
+            "mincoverage=i"  => \$mincoverage,       # integer
+            "newid=s"        => \@newid,             # string array
+            "task=s"         => \$task,              # string
+            "column=i"       => \$column,            # integer
+            "counts"         => \$counts,            # flag
+            "summary"        => \$summary,           # flag
+            "fastq"          => \$fastq,             # flag
+            "flank=i"        => \$flank,             # integer
+            "wrap=i"         => \$wrap,              # integer
+            "chr=s"          => \$filtchr,           # string
+            "gapchar=s"      => \$gapchar,           # string
+            "gffsource=s"    => \$gffsource,         # string
+            "gfffeature=s"   => \$gfffeature,        # string
+            "gfftype=s"      => \$gfftype,           # string
+            "aref=s"         => \$aref,              # string
+            "maxinsertion=i" => \$maxinsertion,      # integer
+            "makeindex"      => \$makeindex,         # flag
+            "maxmissing=s"   => \$maxmissing,        # string (real)
+            "missingcode=s"  => \$missingcode,       # string
+            "minalt=i"       => \$minalt,            # string (real)
+            "nomultalt"      => \$nomultalt,         # flag
+            "keyfile=s"      => \$keyfile,           # string
+            "lenient"        => \$lenient,           # flag
+            "greps=s"        => \@greps,             # string array
+            "minratio=s"     => \$minratio,          # string (real)
+            "maxratio=s"     => \$maxratio,          # string (real)
+            "tomissing"      => \$tomissing,         # flag
+            "uppercase"      => \$uppercase,         # flag
+            "twophases"      => \$twophase,          # flag
+            "variantsperwindow=i"  => \$variantsperwindow, # integer
+            "windowsize=i"   => \$windowsize,        # integer
+            "parentid=s"     => \@parentids,         # string array
+            "filterid=s"     => \$filterid,          # string
+            "filterdescription=s"  => \$filterdescription, # string
+            "sites=i"        => \$sites,             # integer
+            "help"           => \$help,              # flag
+            "quiet"          => \$quiet,             # flag
+            "debug"          => \$debug);            # flag
+# debug implies not quiet
+if ( $debug ) { $quiet = 0; }
+unless ( $infilename ) { $help = 1 }
+unless ( $outfilename ) { $help = 1 }
+unless ( $task ) { $help = 1 }
+if ( ( $task ) and ( ( $task =~ m/^mas/i ) or ( $task =~ m/^k/i ) ) and ( ! $ref ) ) { print "--reference required for --task=mask\n"; $help = 1; }
+if ( ( $task ) and ( $task =~ m/^o/i ) and ( ! $keyfile ) ) { print "--keyfile required for --task=order\n"; $help = 1; }
+if ( ( $task ) and ( $task =~ m/^gr/i ) and ( ! @greps ) ) { print "--grep required for --task=grep\n"; $help = 1; }
+if ( ( $task ) and ( $task =~ m/^p/i ) and ( ! @parentids ) ) { print "--parentid required for --task=parent\n"; $help = 1; }
+if ( ( $task ) and ( $task =~ m/^li/i ) and ( ! $locinfofile ) ) { print "--locusinfofile required for --task=linkage\n"; $help = 1; }
+if ( ( $task ) and ( $task =~ m/^lo/i ) and ( ! $lookupfile ) ) { print "--lookupfile required for --task=lookup\n"; $help = 1; }
+if ( ( $wrap ) and ( $wrap < 0 ) ) { print "Error, wrap cannot be negative\n"; $help = 1; }
+if ( ( $outfilename ) and ( $outfilename eq "-" ) ) { $quiet = 1 }
+
+
+
+############################################################
+# print help screen
+############################################################
+if ( $help )
+  {
+    print "$prognopath
+Required parameters:
+  --infile=xxx      input file name
+  --outfile=xxx     output file name
+  --task=xxx        what to do
+                    --task=consensus  convert to consensus in FASTA format
+                    --task=mask       mask regions with low coverage, requires --reference
+                    --task=gff        convert to gff3 format
+                    --task=matrix     convert to matrix: 0/0=1 1/1=2 0/1=3 ./.=blank
+                    --task=order      reorder genotype columns
+                    --task=grep       return only specified chromosomes
+                    --task=het        change between heterozygous and homozygous or to missing
+                    --task=joinmap    convert vcf to joinmap format
+                    --task=kaspar     generate kaspar style fasta with flanking sequence
+                    --task=linkage    convert vcf to linkage format
+                    --task=rqtl       convert vcf to rqtl csv format
+                    --task=madmapper  create MadMapper matrices from vcf file
+                    --task=downsample downsample vcf in sliding windows
+                    --task=parent     remove variants not in indicated genotypes
+                    --task=majorminor generate pseudo-parents from major and minor alleles
+                    --task=genotypefilter  remove genotypes failing filters
+                    --task=invert     invert genotype of specified individual
+                    --task=cleanheader remove contig entries in header not present in any variant
+                    --task=stats      statistics about variant types
+                    --task=depth      statistics about read depths
+                    --task=frequency  statistics about allele combinations
+                    --task=readcounts statistics about number of reads for each allele
+                    --task=quality    statistics about quality scores AC GQ etc.
+                    --task=lookup     mark sites not in a specified list
+
+Optional parameters:
+For --task=consensus
+  --wrap=xxx        wrap sequence line lengths to this length,
+                    default is no wrapping
+  --gapchar=x       character to use for gaps, default = \"$defaultgapchar\"
+For --task=mask:
+  --reference=xxx   FASTA file to be masked
+  --mincoverage=xxx minimum coverage for avoiding masking, default = $defaultmincoverage
+  --newid=xxx       substitute FASTA header in --reference with this, multiple
+                    allowed. This is to fix gatk stupidly replacing names with integers.
+  --fastq           output in fastq format, default is fasta NOT IMPLEMENTED
+  --wrap=xxx        wrap sequence line lengths to this length,
+                    default is no wrapping
+  --gapchar=x       character to use for gaps, default = \"$defaultgapchar\"
+For --task=gff:
+  --gffsource=xxx   for --task=gff, second column, default = \"$defaultgffsource\"
+  --gfffeature=xxx  for	--task=gff, third column, default = \"$defaultgfffeature\"
+                    special value \"auto\" will then output \"".join ( '", "', @autofeature )."\" as appropriate
+  --gfftype=xxx     custom processing, allowed values: lumpy delly annovar attrib
+  --maxinsertion=xxx Insertions above this size are not indicated as ranges, but as point
+                    features, default is $defaultmaxinsertion, set to 0 to disable
+  --nomultalt       discard variants with more than one alternate allele
+For --task=gff or --task=matrix or --task=joinmap
+  --maxmissing=xxx  a filter, no more than this percent of genotypes may be missing data
+  --minalt=xxx      a filter, at least this percent of genotypes must be homozygous alternate allele
+For --task=genotypefilter
+  --maxmissing=xxx  a filter, no more than this percent of variants within a genotype
+                    may be missing data (required)
+For --task=kaspar:
+  --reference=xxx   Reference genome (required)
+  --flank=xxx       nt of flanking sequence each side of variant, default is $defaultflank
+For --task=matrix
+  --counts          only output counts and percents of each genotype for each variant
+  --summary         append a summary of value counts
+For --task=order
+  --keyfile=xxx     text file with new genotype names in desired order, one per line
+                    if file has a second column (tab delimited), samples are renamed
+                    to value in the second column
+  --lenient         if sample is not in --keyfile, remove it from the output
+                    or allow sample not in vcf to be in keyfile
+For --task=grep
+  --grep=xxx        pattern to match in reference sequence name (may use multiple times)
+  --v               invert grep, only return non-matches
+For --task=het
+  --minratio=xxx    minimum allele frequency for heterozygous, default = $defaultminratio
+  --maxratio=xxx    maximum allele frequency for heterozygous, default = $defaultmaxratio
+                    if --minratio is < --maxratio, heterozygous is converted to
+                    homozygous, if --minratio is > --maxratio, homozygous is
+                    converted to heterozygous
+  --tomissing       if heterozygous and outside the range, change to missing
+                    instead of changing to homozygous
+For --task=joinmap
+  --uppercase       output alleles in upper case ABH instead of lower case abh
+  --twophase        duplicate all markers in opposite phase i.e. A->B and B->A
+                    this second copy will have 'r' appended to marker name
+  --aref=xxx        flip marker phase using this genotype as reference for A
+  --missingcode=x   value to use for missing data, default is '.'
+For --task=linkage
+  --locusinfofile=xxx  required, output file name for locus information file
+  --chr=xxx         only output this chromosome
+For --task=downsample
+  --windowsize=xxx  size of sliding windows to be downsampled, default=$defaultwindowsize
+  --variantsperwindow=xxx  each sliding window will have a maximum of this many
+                    variants, default=$defaultvariantsperwindow
+For --task=parent or --task=invert
+  --parentid=xxx    use one or more times, to indicate which genotype should be
+                    the basis of filtering
+For --task=lookup
+  --lookupfile=xxx  required, file with sites
+  --column=xxx      column to use in --lookupfile, default = 1 (1-based)
+  --filterid=xxx    vcf header filter ID, default = \"$defaultfilterid\"
+  --filterdescription=xxx  vcf header filter description, default = \"$defaultfilterdescription\"
+For --task=quality
+  --sites=xxx       only process up to this many sites and then summarize
+For all tasks:
+  --makeindex       generate a tabix .tbi index if the output is a .gz compressed vcf
+  --help            print this screen
+  --quiet           only print error messages
+  --debug           print extra debugging information
+";
+    exit 1;
+  } # if ( $help )
+
+
+
+############################################################
+# task selection
+############################################################
+if ( $task =~ m/^cl/i )
+  { task_cleanheader( $infilename, $outfilename ); }
+elsif ( $task =~ m/^co/i )
+  { task_consensus( $infilename, $outfilename ); }
+elsif ( $task =~ m/^de/i )
+  { task_depth( $infilename, $outfilename ); }
+elsif ( $task =~ m/^do/i )
+  { task_downsample( $infilename, $outfilename, $windowsize, $variantsperwindow ); }
+elsif ( $task =~ m/^fr/i )
+  { task_frequency( $infilename, $outfilename ); }
+elsif ( $task =~ m/^ge/i )
+  { task_gf( $infilename, $outfilename ); }
+elsif ( $task =~ m/^gf/i )
+  { task_gff( $infilename, $outfilename ); }
+elsif ( $task =~ m/^gr/i )
+  { task_grep( $infilename, $outfilename ); }
+elsif ( $task =~ m/^h/i )
+  { task_het( $infilename, $outfilename ); }
+elsif ( $task =~ m/^i/i )
+  { task_invert( $infilename, $outfilename, \@parentids ); }
+elsif ( $task =~ m/^j/i )
+  { task_matrix( $infilename, $outfilename, 1 ); }
+elsif ( $task =~ m/^k/i )
+  { task_kaspar( $infilename, $outfilename ); }
+elsif ( $task =~ m/^li/i )
+  { task_linkage( $infilename, $outfilename, $locinfofile ); }
+elsif ( $task =~ m/^lo/i )
+  { task_lookup( $infilename, $outfilename, $lookupfile, $column, $filterid, $filterdescription ); }
+elsif ( $task =~ m/^mad/i )
+  { task_madmapper( $infilename, $outfilename ); }
+elsif ( $task =~ m/^maj/i )
+  { task_majorminor( $infilename, $outfilename ); }
+elsif ( $task =~ m/^mas/i )
+  { task_mask( $infilename, $outfilename ); }
+elsif ( $task =~ m/^mat/i )
+  { task_matrix( $infilename, $outfilename, 0 ); }
+elsif ( $task =~ m/^o/i )
+  { task_order( $infilename, $outfilename ); }
+elsif ( $task =~ m/^p/i )
+  { task_parent( $infilename, $outfilename, \@parentids ); }
+elsif ( $task =~ m/^q/i )
+  { task_quality( $infilename, $outfilename, $sites ); }
+elsif ( $task =~ m/^rqtl/i )
+  { task_matrix( $infilename, $outfilename, 2 ); }
+elsif ( $task =~ m/^re/i )
+  { task_readcounts( $infilename, $outfilename ); }
+elsif ( $task =~ m/^stat/i )
+  { task_stats( $infilename, $outfilename ); }
+else
+  { die "Error, unknown task \"$task\"\n"; }
+
+
+
+############################################################
+# cleanup and end program
+############################################################
+unless ( $quiet ) { print "$0 Done\n"; }
+exit 0;
+
+
+
+############################################################
+sub task_mask { my ( $infilename, $outfilename ) = @_;
+############################################################
+    my %dp;  # depth
+    debugmsg ( "Loading reference from \"$ref\"" );
+    my @seq = loadfasta ( $ref, 1 );
+    if ( @newid )
+      {
+        for my $i ( 0..$#newid )
+          {
+            debugmsg ( "Changing header $i from \"$seq[$i]->{hdr}\" to \"$newid[$i]\"" );
+            $seq[$i]->{hdr} = $newid[$i];
+          }
+      }
+    my %seqidx = %{indexfasta( \@seq, 1 )};
+
+    debugmsg ( "Reading vcf file \"$infilename\"" );
+    my $INF = stdopen ( "<", $infilename );
+    my $nlines = 0;
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # skip over comment lines
+        if ( $aline =~ m/^#/ )
+          {
+            #debugmsg ( "Skipping comment line $nlines: \"$aline\"" );
+            next;
+          }
+
+	my @cols = split ( /\t/, $aline );
+
+        # skip indel lines
+        if ( $cols[7] =~ m/INDEL/ )
+          {
+            #debugmsg ( "Skipping INDEL line $nlines: \"$aline\"" );
+            next;
+          }
+
+        if ( $cols[7] =~ m/DP=(\d+)/ )
+          { $dp{$cols[0]}->[$cols[1]] = $1; }
+        
+      } # while <$INF>
+    stdclose ( $INF );
+
+    foreach my $seqid ( keys %dp )
+      {
+        my $ncount = 0;
+        my $prevcount = 0;
+        debugmsg ( "Masking \"$seqid\"" );
+        unless ( defined $seqidx{$seqid} ) { die "Error, sequence \"$seqid\" not in FASTA file \"$ref\"\n"; }
+        for my $i ( 1 .. length($seq[$seqidx{$seqid}]->{seq}) )
+          {
+            unless ( ( $dp{$seqid}->[$i] ) and ( $dp{$seqid}->[$i] >= $mincoverage ) )
+              {
+                if ( substr ( $seq[$seqidx{$seqid}]->{seq}, $i-1, 1 ) =~ m/N/i )
+                  { $prevcount++; if ( $prevcount <= 10 ) { debugmsg ( "Existing N at $i" ); } }
+                else
+                  { $ncount++; if ( $ncount <= 10 ) { debugmsg ( "Add gap to \"$seqid\" at $i" ); } }
+                substr ( $seq[$seqidx{$seqid}]->{seq}, $i-1, 1 ) = $gapchar;
+              }
+          }
+        unless ( $quiet )
+          {
+            print "For sequence \"$seqid\" length ".commify(length($seq[$seqidx{$seqid}]->{seq}))
+                 ." added ".commify($ncount)." ".$gapchar."'s and kept ".commify($prevcount)."\n";
+          }
+      }
+
+    debugmsg ( "saving sequence to \"$outfilename\"" );
+    savefasta ( $outfilename, \@seq, $wrap );
+} # sub task_mask
+
+
+
+############################################################
+sub task_cleanheader { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nremoved = 0;
+  my %seen;
+
+  # first pass to generate list of chromosomes that are present
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+
+      # skip over comment lines
+      if ( $aline !~ m/^#/ )
+        {
+          $aline =~ s/[\r\n]//g;
+          my @cols = split( /\t/, $aline );
+          $seen{$cols[0]}++;
+        }
+    }
+  unless ( $quiet ) { print "Read ".commify($nlines)." lines, found ".scalar(keys(%seen))." unique chromosomes\n"; }
+
+  # reopen file. Can't seek to start because may be gzip compressed
+  stdclose( $INF );
+  $INF = stdopen ( "<", $infilename );
+
+  while ( my $aline = <$INF> )
+    {
+      # only need to check comment lines
+      # look for e.g. ##contig=<ID=DCARv2_S62,length=3200>
+      if ( $aline =~ m/^#/ )
+        {
+          if ( ( $aline !~ m/contig=<ID=([^,]+)/ ) or ( $seen{$1} ) )
+            { print $OUTF $aline; }
+          else
+            { $nremoved++; }
+        }
+      else
+        { print $OUTF $aline; }
+    }
+  stdclose( $OUTF );
+  stdclose( $INF );
+  unless ( $quiet ) { print "Removed ".commify($nremoved)." header lines not present in any variants\n"; }
+} # sub task_cleanheader
+
+
+
+############################################################
+sub task_consensus { my ( $infilename, $outfilename ) = @_;
+############################################################
+    my $INF = stdopen ( "<", $infilename );
+    my $OUTF = stdopen ( ">", $outfilename );
+    my $nlines = 0;
+    my $last_chr = '';
+    my $last_pos = 0;
+    my @seq;
+    my @qual;
+#my $_Q = 10;
+#my $_d = 3;
+#my $_D = 100000;
+#my $indelwin = 5;
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # skip over comment lines
+        if ( $aline =~ m/^#/ )
+          {
+            #debugmsg ( "Skipping comment line $nlines: \"$aline\"" );
+            next;
+          }
+
+        my @cols = split ( /\t/, $aline );
+        # [0] CHROM chromosome: an identifier from the reference genome. All entries for a specific CHROM should form a contiguous
+        #     block within the VCF file.(Alphanumeric String, Required)
+        # [1] POS position: The reference position, with the 1st base having position 1. Positions are sorted numerically, in
+        #     increasing order, within each reference sequence CHROM. (Integer, Required)
+        # [2] ID semi-colon separated list of unique identifiers where available. If this is a dbSNP variant it is encouraged to
+        #     use the rs number(s). No identifier should be present in more than one data record. If there is no identifier
+        #     available, then the missing value should be used. (Alphanumeric String)
+        # [3] REF reference base(s): Each base must be one of A,C,G,T,N. Bases should be in uppercase. Multiple bases are
+        #     permitted. The value in the POS field refers to the position of the first base in the String. For InDels, the
+        #     reference String must include the base before the event (which must be reflected in the POS field). (String, Required).
+        # [4] ALT comma separated list of alternate non-reference alleles called on at least one of the samples. Options are base
+        #     Strings made up of the bases A,C,G,T,N, or an angle-bracketed ID String (”<ID>”). If there are no alternative alleles,
+        #     then the missing value should be used. Bases should be in uppercase. (Alphanumeric String; no whitespace, commas, or
+        #     angle-brackets are permitted in the ID String itself)
+        # [5] QUAL phred-scaled quality score for the assertion made in ALT. i.e. give -10log_10 prob(call in ALT is wrong). If ALT
+        #     is ”.” (no variant) then this is -10log_10 p(variant), and if ALT is not ”.” this is -10log_10 p(no variant). High
+        #     QUAL scores indicate high confidence calls. Although traditionally people use integer phred scores, this field is
+        #     permitted to be a floating point to enable higher resolution for low confidence calls if desired. (Numeric)
+        # [6] FILTER filter: PASS if this position has passed all filters, i.e. a call is made at this position. Otherwise, if the
+        #     site has not passed all filters, a semicolon-separated list of codes for filters that fail. e.g. “q10;s50” might
+        #     indicate that at this site the quality is below 10 and the number of samples with data is below 50% of the total
+        #     number of samples. “0” is reserved and should not be used as a filter String. If filters have not been applied, then
+        #     this field should be set to the missing value. (Alphanumeric String)
+        # [7] INFO additional information: (Alphanumeric String) INFO fields are encoded as a semicolon-separated series of short
+        #     keys with optional values in the format: <key>=<data>[,data]. Arbitrary keys are permitted, although the following
+        #     sub-fields are reserved (albeit optional):
+
+        if ($last_chr ne $cols[0])
+          {
+            debugmsg ( "New reference \"$cols[0]\"" );
+            if ($last_chr)
+              { consensussaveone ( $OUTF, $last_chr, \@seq, \@qual ); }
+            $last_chr = $cols[0];
+            $last_pos = 0;
+            undef @seq;
+            undef @qual;
+          }
+
+        if ( $cols[1] - $last_pos < 0 )
+          { die ( "unsorted vcf input line $nlines\n" ); }
+
+        # $vgap is >0 if there is a gap in the vcf, or $vgap is 0 if contiguous
+        my $vgap = ( $cols[1] - $last_pos - 1 );
+        if ( $vgap > 0 )
+          {
+            debugmsg ( "gap in vcf between $last_pos and $cols[1]" );
+            for my $i ( $last_pos+1 .. $cols[1]-1 )
+              {
+                $seq[$i-1] = $gapchar;
+                $qual[$i-1] = '!';
+              }
+          } # if $vgap
+
+         # decode column [7]
+         my %info;
+         foreach my $item ( split ( /;/, $cols[7] ) )
+           {
+             next unless ( $item );  # skip null entries
+             my ( $key, $value ) = split ( /=/, $item );
+             $info{$key} = $value;
+           }
+
+         # decode depths
+         my $refdepth;
+         my $altdepth;
+         if ( $info{DP4} )
+           {
+             my ( $a, $b, $c, $d ) = split ( /,/, $info{DP4} );
+             $refdepth = $a + $b;
+             $altdepth = $c + $d;
+           }
+
+         # store reference
+         for my $i ( 1..length($cols[3]) )
+           {
+             my $pos = $cols[1]+$i-2;
+             if ( ( ! defined $qual[$pos] ) or ( $cols[5] > $qual[$pos] ) )
+               {
+                 $seq[$pos] = substr ( $cols[3], $i-1, 1 );
+                 $qual[$pos] = $cols[5];
+               }
+           }
+
+         # store alternate if higher coverage than reference
+         if ( ( $cols[4] ne '.' ) and ( $altdepth > $refdepth ) )
+           {
+             if ( length($cols[3]) < length($cols[4]) )
+               {
+                 debugmsg ( "Insertion at $cols[1] \"$cols[3]\" -> \"$cols[4]\"" );
+                 for my $i ( 1 .. length($cols[3]) )
+                   { $seq[$cols[1]+$i-2] = substr ( $cols[4], $i-1, 1 ); }
+                 $seq[$cols[1]+length($cols[3])-2] .= substr ( $cols[4], length($cols[3]) );
+               }
+             elsif ( length($cols[3]) > length($cols[4]) )
+               {
+                 debugmsg ( "Deletion at $cols[1] \"$cols[3]\" -> \"$cols[4]\"" );
+                 for my $i ( 1 .. length($cols[4]) )
+                   { $seq[$cols[1]+$i-2] = substr ( $cols[4], $i-1, 1 ); }
+                 for my $i ( length($cols[4])+1 .. length($cols[3]) )
+                   { $seq[$cols[1]+$i-2] = ''; }
+               }
+             else  # SNP
+               {
+                 debugmsg ( "SNP at $cols[1] \"$cols[3]\" -> \"$cols[4]\"" );
+                 $seq[$cols[1]-1] = $cols[4];
+               }
+           }
+        
+
+#        if ( length($cols[3]) == 1
+#          && $cols[7] !~ m/INDEL/
+#          && $cols[4] =~ m/^([A-Za-z.])(,[A-Za-z])*$/ )
+#          {
+#            # a SNP or reference
+#            my ($ref, $alt) = ($cols[3], $1);
+#            my $b;
+#            my $q;
+#            $q = $1 if ( $cols[7] =~ m/FQ=(-?[\d\.]+)/ );
+#            if ($q < 0)
+#              {
+#                $_ = ($cols[7] =~ m/AF1=([\d\.]+)/) ? $1 : 0;
+#                $b = ($_ < .5 || $alt eq '.') ? $ref : $alt;
+#                $q = -$q;
+#              }
+#            else
+#              {
+#                $b = $het{"$ref$alt"};
+#                $b ||= 'N';
+#              }
+#            $b = lc($b);
+#            if ( ( $cols[7] =~ m/MQ=(\d+)/  &&  $1 >= $_Q )
+#              && ( $cols[7] =~ m/DP=(\d+)/  &&  $1 >= $_d  &&  $1 <= $_D ) )
+#              { $b = uc($b); }
+#            $q = int ( $q + 33 + .499 );
+#            $q = chr ( $q <= 126 ? $q : 126 );
+#            $seq .= $b;
+#            $qual .= $q;
+#          }
+#        elsif ($cols[4] ne '.')
+#          { # an INDEL
+#            push(@gaps, [$cols[1], length($cols[3])]);
+#          }
+#        else
+#          { warn "Unprocessed at line $nlines \"$aline\"\n"; }
+	$last_pos = $cols[1];
+      } # while <$INF>
+#   v2q_post_process( $OUTF, $last_chr, \$seq, \$qual, \@gaps, $indelwin );
+    consensussaveone ( $OUTF, $last_chr, \@seq, \@qual );
+    stdclose ( $OUTF );
+    stdclose ( $INF );
+} # sub task_consensus
+
+
+
+############################################################
+sub consensussaveone { my ( $OUTF, $id, $seqref, $qualref ) = @_;
+############################################################
+  debugmsg ( "Outputting sequence \"$id\"" );
+  my $seq = join ( '', @{$seqref} );
+  if ( $wrap )
+    { $seq =~ s/(.{$wrap})/$1\n/g; }
+  print $OUTF $fastq?'@':'>', $id, "\n";
+  print $OUTF $seq, "\n";
+  if ( $fastq )
+    {
+      my $qual = join ( '', @{$qualref} );
+      if ( $wrap )
+        { $qual =~ s/(.{$wrap})/$1\n/g; }
+      print $OUTF "+\n";
+      print $OUTF $qual, "\n";
+    }
+} # sub consensussaveone
+
+
+
+#sub v2q_post_process { my ( $OUTF, $chr, $seq, $qual, $gaps, $l ) = @_;
+#  debugmsg ( "Outputting sequence \"$chr\"" );
+#  for my $g ( @$gaps )
+#    {
+#      my $beg = $g->[0] > $l? $g->[0] - $l : 0;
+#      my $end = $g->[0] + $g->[1] + $l;
+#      $end = length($$seq) if ( $end > length($$seq) );
+#      substr($$seq, $beg, $end - $beg) = lc( substr($$seq, $beg, $end - $beg) );
+#    }
+#  print $OUTF $fastq?'@':'>', $chr, "\n";
+#  v2q_print_str( $OUTF, $seq );
+#  if ( $fastq )
+#    {
+#      print "+\n";
+#      v2q_print_str( $OUTF, $qual );
+#    }
+#} # sub v2q_post_process
+
+
+
+#sub v2q_print_str { my ($OUTF, $sref) = @_;
+#  if ( $wrap )
+#    {
+#      my $l = length($$sref);
+#      for ( my $i = 0; $i < $l; $i += $wrap )
+#        { print $OUTF substr( $$sref, $i, $wrap ), "\n"; }
+#    }
+#  else
+#    { print $OUTF $$sref, "\n"; }
+#} # sub v2q_print_str
+
+
+
+############################################################
+sub task_gff { my ( $infilename, $outfilename ) = @_;
+############################################################
+    # special processing modes
+    my $spm_lumpy = ( $gfftype =~ m/lumpy/i );
+    my $spm_delly = ( $gfftype =~ m/delly/i );
+    my $spm_annovar = ( $gfftype =~ m/annovar/i );
+    my $spm_attrib = ( $gfftype =~ m/attrib/i );
+
+    my $INF = stdopen ( "<", $infilename );
+    my $OUTF = stdopen ( ">", $outfilename );
+    print $OUTF $gffheader;
+    my $nlines = 0;
+    my $nsaved = 0;
+    my $ndropped = 0;
+    my @ids;
+    my %idsidx;  # index of @ids
+    my $idnum = 0;  # unique id number for gff file
+    my $numgt; # number of genotypes
+    my $filtalt = 0;
+    my $filtmissing = 0;
+    my $nfilt = 0;  # total filtered out
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # header and comment lines
+        if ( $aline =~ m/^#/ )
+          {
+            # genotypes line, e.g.
+            #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  I1      I2      I3 ...
+            if ( $aline =~ m/^#CHROM\t/ )
+              {
+                # store genotype IDs and make a reverse index to column number
+                @ids = split ( /\t/, $aline );
+                for my $i ( 9 .. $#ids )
+                  { $idsidx{$ids[$i]} = $i; }
+                $numgt = scalar(@ids) - 9;  # number of genotypes
+              }
+          } # header line
+        else  # variant lines
+          {
+            # e.g. CHR1    645     .       C       A       132.61  .       AC=1;AF=0.021;AN=48;BaseQRankSum=1.53;
+            # ClippingRankSum=-1.890e-01;DP=798;FS=2.606;GQ_MEAN=57.21;GQ_STDDEV=41.81;InbreedingCoeff=-0.0674;
+            # MLEAC=1;MLEAF=0.021;MQ=46.40;MQ0=0;MQRankSum=-1.864e+00;NCC=12;QD=1.35;ReadPosRankSum=1.70
+            # GT:AD:DP:GQ:PL  0/0:16,0:16:48:0,48,654
+            # gfftype=lumpy
+            #DCARv2_B1	55187	324947_1	N	N]DCARv2_S873:18088]	.	.	SVTYPE=BND;STRANDS=++:29;EVENT=324947;MATEID=324947_2;CIPOS=-3,212;CIEND=-10,214;CIPOS95=0,96;CIEND95=-3,30;IMPRECISE;SU=29;PE=29;SR=0	GT:SU:PE:SR	./.:0:0:0...
+            #DCARv2_B1	55701	134091	N	<DEL>	.	.	SVTYPE=DEL;STRANDS=+-:273;SVLEN=-1292;END=56993;CIPOS=-10,173;CIEND=-40,0;CIPOS95=-2,4;CIEND95=-4,1;IMPRECISE;SU=273;PE=273;SR=0	GT:SU:PE:SR	./.:0:0:0...
+            # gfftype=delly
+            #DCARv2_Chr1	724	DEL00019746	N	<DEL>	.	PASS	PRECISE;CIEND=-10,10;CIPOS=-10,10;SVTYPE=DEL;SVMETHOD=EMBL.DELLYv0.7.2;CHR2=DCARv2_Chr1;END=750;CT=3to5;INSLEN=0;PE=0;MAPQ=51;SR=11;SRQ=0.967857;CONSENSUS=TATTTGGGGAAGTCGGGACTGAATCGGAGGAGATATAACGAAGTTCAAGTTTTTGACGAATTCTCAAAGGGGTTTCAGCAGGAAGTTTCTTTTGATATTTTCACATAAGTGG	GT:GL:GQ:FT:RCL:RC:RCR:CN:DR:DV:RR:RV	0/1:-3.93803,0,-212.826:39:PASS:20:31:0:3:0:0:66:7	...
+            #DCARv2_Chr1	576	DUP00000001	N	<DUP>	.	PASS	IMPRECISE;CIEND=-33,33;CIPOS=-33,33;SVTYPE=DUP;SVMETHOD=EMBL.DELLYv0.7.2;CHR2=DCARv2_Chr1;END=16158;CT=5to3;INSLEN=0;PE=118;MAPQ=44	GT:GL:GQ:FT:RCL:RC:RCR:CN:DR:DV:RR:RV	1/1:-20.9,-1.20408,0:12:LowQual:2:4346:3748:2:0:4:0:0
+            #DCARv2_Chr1	20997	INV00000001	N	<INV>	.	PASS	IMPRECISE;CIEND=-330,330;CIPOS=-330,330;SVTYPE=INV;SVMETHOD=EMBL.DELLYv0.7.2;CHR2=DCARv2_Chr1;END=4297556;CT=3to3;INSLEN=0;PE=4;MAPQ=44	GT:GL:GQ:FT:RCL:RC:RCR:CN:DR:DV:RR:RV	0/0:0,-10.5358,-205.1:105:PASS:2:1752390:8493:413:35:0:0:0
+            my @cols = split ( /\t/, $aline );
+            # filter for variants with more than 2 alleles
+            my @alt = split ( /,/, $cols[4] );
+            if ( ( ( scalar @alt ) == 1 ) or ( ! $nomultalt ) )
+              {
+                my @abhmcount = ( 0, 0, 0, 0 );
+                my @abhmgt = ( '', '', '', '' );
+                for my $i ( 9 .. $#ids )
+                  {
+                    my @gt = split ( /:/, $cols[$i] );
+                    if ( $gt[0] =~ m:0[/\|]0: )  # homozygous reference
+                      { $abhmcount[0]++; $abhmgt[0] .= " $ids[$i]"; }
+                    elsif ( $gt[0] =~ m:[^0\.][/\|][^0\.]: )  # homozygous alternate(s) (non-ref if > 1 alt allele)
+                      { $abhmcount[1]++; $abhmgt[1] .= " $ids[$i]"; }
+                    elsif ( ( $gt[0] =~ m:0[/\|][^0\.]: ) or ( $gt[0] =~ m:[^0\.][/\|]0: ) )  # heterozygous
+                      { $abhmcount[2]++; $abhmgt[2] .= " $ids[$i]"; }
+                    else  # missing or not called
+                      { $abhmcount[3]++; $abhmgt[3] .= " $ids[$i]"; }
+                  }
+                for my $i ( 0..3 )
+                  {
+                    $abhmgt[$i] =~ s/^ //;
+                    $abhmgt[$i] =~ s/^$/./;  # dot if no samples with this genotype
+                  }
+
+                # filters
+                my $okay = 1;
+                unless ( defined $numgt )
+                  { die "Bug, numgt is undefined line $nlines of file \"$infilename\", line=\"$aline\"\n"; }
+                if ( ( $abhmcount[3] * 100 / $numgt ) > $maxmissing )
+                  { $okay = 0; $filtmissing++; }
+                if ( ( $abhmcount[1] * 100 / $numgt ) < $minalt )
+                  { $okay = 0; $filtalt++; }
+                unless ( $okay )
+                  { $nfilt++; next; }
+
+                my $lenref = length($cols[3]);
+                # alternate allele length is mean of all alternate allele lengths
+                my $lenalt = '.';
+                {
+                my $nalt = 0;
+                my $totalt = 0;
+                foreach my $t ( split/,/, $cols[4] )
+                  {
+                    $nalt++;
+                    $totalt += length($t);
+                  }
+                if ( $nalt )
+                  {
+                    $lenalt = $totalt / $nalt;
+                    if ( $lenalt =~ m/\./ ) { $lenalt = sprintf( '%0.2f', $lenalt ); }
+                  }
+                }
+                my $chr = $cols[0];
+                my $startposition = $cols[1];
+                my $endposition = $startposition + $lenref - 1;
+                if ( ( $spm_lumpy ) or ( $spm_delly ) )
+                  {
+                    # lenref will always be 1 because ref is "N"
+                    if ( $cols[7] =~ m|;END=([^;]+)| )
+                      {
+                        $endposition = $1;
+                        $lenalt = $endposition - $startposition + 1;
+                      }
+                    else
+                      {
+                        $lenalt = 0;
+                        $endposition = $startposition;
+                      }
+                  }
+                my $varname = $cols[2];
+                my $qual = $cols[5];
+                my $gq_mean;
+                if ( $cols[7] =~ m/GQ_MEAN=([^;]+)/ )
+                  { $gq_mean = $1; }
+                my $ftype;
+                if ( $spm_lumpy )
+                  {
+                    ( $ftype = $cols[4] ) =~ s|[\<\>]||g;
+                    if ( $ftype =~ m|[\[\]]| ) { $ftype = 'TRA'; }
+                  }
+                elsif ( $spm_delly )
+                  {
+                    ( $ftype = $cols[4] ) =~ s|[\<\>]||g;
+                  }
+                else
+                  {
+                    if ( $cols[4] =~ m/,/ ) # Multiple alternate alleles
+                      { $ftype = $autofeature[3]; }
+                    elsif ( $lenalt == $lenref )   # SNP
+                      { $ftype = $autofeature[0]; }
+                    elsif ( $lenalt > $lenref ) # Insertion
+                      { $ftype = $autofeature[1]; }
+                    else                        # Deletion
+                      { $ftype = $autofeature[2]; }
+                  }
+                my $feature;
+                if ( $gfffeature eq 'auto' )
+                  { $feature = $ftype; }
+                else
+                  { $feature = $gfffeature; }
+                if ( $varname eq '.' )
+                  { $varname = ++$idnum; }
+                my $indelsize = '';
+                unless ( ( $ftype eq $autofeature[0] ) or ( $ftype eq $autofeature[3] ) )
+                  {
+                    if ( ( $spm_lumpy ) or ( $spm_delly ) )
+                      { $indelsize = ' ' . abs ( $lenref - 1 - $lenalt ) . 'nt'; }
+                    else
+                      { $indelsize = ' ' . abs ( $lenref - $lenalt ) . 'nt'; }
+                  }
+                my $name = $ftype . $indelsize . '@' . $startposition;
+                if ( $spm_lumpy )
+                  {
+                    ( $name = $cols[4] ) =~ s|[\<\>]||g;
+                    $name .= '@' . $startposition;
+                  }
+                my $attributes = "ID=$varname;Name=$name;Type=$ftype";
+                # escape commas
+                ( my $col4esc = $cols[4] ) =~ s/,/%2C/g;
+                my $alleles="$cols[3]|$col4esc";
+                if ( $spm_lumpy )
+                  { $alleles =~ s|[\<\>]||g; }
+                unless ( $spm_delly )
+                  { $attributes .= ";Alleles=$alleles"; }
+
+# changed 5/15/16 this is obsolete
+#                $attributes .= ";ABHMCounts=".join ( ',', @abhmcount );
+#                $attributes .= ";ABHMGenotypes=".join ( ',', @abhmgt );
+                for my $i ( 0..3 )
+                  {
+                    $attributes .= ';'.$abhmtxt[$i].'='.($abhmcount[$i]//0);
+                    if ( $abhmcount[$i] ) { $attributes .= ':'.$abhmgt[$i]; }
+                  }
+
+                if ( defined $gq_mean ) { $attributes .= ";GQ_MEAN=$gq_mean"; }
+
+                # add all attributes, making sure all have values
+                if ( ( $spm_lumpy ) or ( $spm_delly ) or ( $spm_attrib ) )
+                  {
+                    my @parts = split( /;/, $cols[7] );
+                    foreach my $apart ( @parts )
+                      {
+                        unless ( $apart =~ m|=| ) { $apart .= '=1'; }
+                        # omit just to save space
+                        unless ( $apart =~ m|SVMETHOD=EMBL.DELLY| )
+                          { $attributes .= ';' . $apart; }
+                      }
+                  }
+                elsif ( $spm_annovar )
+                  {
+                    my @parts = split( /;/, $cols[7] );
+                    foreach my $apart ( @parts )
+                      {
+                        if ( ( $apart =~ m|Annovar[^=]*=|i ) or ( $apart =~ m|DP=| ) )
+                          { $attributes .= ';' . $apart; }
+                      }
+                  }
+
+                my $strand = '.';
+                if ( ( $spm_lumpy ) or ( $spm_delly ) )
+                  {
+                    $strand = '+';
+                    if ( $startposition > $endposition )
+                      {
+                        ( $startposition, $endposition ) = ( $endposition, $startposition );
+                        $strand = '-';
+                      }
+                  }
+
+                # very large insertions are not viewable, change to point feature
+                # and add a * suffix to name
+                if ( ( $maxinsertion ) and ( ($endposition-$startposition+1) > $maxinsertion ) )
+                  {
+                    $attributes =~ s/(Name=[^;]+)/$1*/;
+                    $attributes .= ";endposition=$endposition";
+                    $endposition = $startposition;
+                  }
+                my @outcols = ( $chr, $gffsource, $feature, $startposition, $endposition,
+                                $qual, $strand, '.', $attributes );
+                print $OUTF join ( "\t", @outcols ), "\n";
+                $nsaved++;
+              }
+            else
+              { $ndropped++; }
+          } # else variant line
+
+      } # while <$INF>
+    stdclose ( $OUTF );
+    stdclose ( $INF );
+    unless ( $quiet )
+      {
+        print "Variants failing minimum homozygous alternate percent of $minalt = ".commify($filtalt)."\n";
+        print "Variants failing maximum missing percent of $maxmissing = ".commify($filtmissing)."\n";
+        print "Variants saved = ".commify($nsaved)."\n";
+        print "Variants filtered out = ".commify($nfilt)."\n";
+      }
+} # sub task_gff
+
+
+
+############################################################
+sub task_kaspar { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nsaved = 0;
+
+  # load reference genome
+  debugmsg ( "loading reference \"$ref\"" );
+  my @refseq = loadfasta( $ref, 1 );
+  debugmsg ( "indexing reference" );
+  my %refidx = %{indexfasta( \@refseq, 1 )};
+
+  # parse vcf file
+  debugmsg ( "parsing vcf \"$infilename\"" );
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline !~ m/^#/ )
+        {
+          my @cols = split( /\t/, $aline );
+          my $refi = $refidx{$cols[0]};
+          unless (defined($refi))
+            { die "Error, no sequence \"$cols[0]\" in reference \"$ref\"\n"; }
+          my $start = $cols[1] - $flank - 1;  # convert 1-based to 0-based
+          if ( $start < 0 ) { $start = 0; }  # left truncate
+          my $leftlen = $cols[1] - $start - 1;
+          #my $stop = $cols[1] + $flank - 1;
+          #my $rightlen = $stop - $cols[1] + 1;
+          my $variant = '[' . $cols[3] . '/' . $cols[4] . ']';
+          my $kseq = substr($refseq[$refi]->{seq}, $start, $leftlen)
+                   . $variant
+                   . substr($refseq[$refi]->{seq}, $cols[1], $flank);
+          my $hdr = '>' . $cols[0] . ':' . $cols[1] . ' ' . $cols[3] . '/' . $cols[4];
+          print $OUTF $hdr, "\n", $kseq, "\n";
+          $nsaved++;
+        }
+    } # while <$INF>
+  unless($quiet) { print("Processed ".commify($nlines)." lines and saved ".commify($nsaved)." variants\n" ); }
+} # sub task_kaspar
+
+
+
+############################################################
+sub task_matrix { my ( $infilename, $outfilename, $outformat ) = @_;
+############################################################
+# outformat is 0 for original matrix, 1 for joinmap, 2 for rqtl
+    $outformat //= 0;
+    if ( ( $outformat ) and ( $counts ) )
+      { die "--counts is incompatible with --joinmap or --rqtl\n"; }
+#what was I thinking here?
+#    if ( ( $outformat ) and ( $twophase ) )
+#      { die "--counts is incompatible with --twophase\n"; }
+    my $INF = stdopen ( "<", $infilename );
+    my $OUTF = stdopen ( ">", $outfilename );
+    my $nlines = 0;
+    my $nsaved = 0;
+    my $ndropped = 0;
+    my @ids;
+    my %idsidx;  # index of @ids
+    my $idnum = 0;  # unique id number for gff file
+    my $numgt; # number of genotypes
+    my $filtalt = 0;
+    my $filtmissing = 0;
+    my $nfilt = 0;  # total filtered out
+    my @abhmtxt = ( '1', '2', '3', '' );
+    my $delim = "\t";
+    if ( $outformat == 2 ) { $delim = ','; }
+    my @suminfo;  # summary info for --summary
+    my $arefcol;  # column of reference genotype if using --aref
+    if ( $outformat )
+      {
+        if ( $uppercase )
+          { @abhmtxt = ( 'A', 'H', 'B', $missingcode ); }
+        else
+          { @abhmtxt = ( 'a', 'h', 'b', $missingcode ); }
+      }
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # header and comment lines
+        if ( $aline =~ m/^#/ )
+          {
+            # genotypes line, e.g.
+            #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  I1      I2      I3 ...
+            if ( $aline =~ m/^#CHROM\t/ )
+              {
+                # store genotype IDs and make a reverse index to column number
+                @ids = split ( /\t/, $aline );
+                for my $i ( 9 .. $#ids )
+                  { $idsidx{$ids[$i]} = $i; }
+                $numgt = scalar(@ids) - 9;  # number of genotypes
+                if ( $aref )
+                  {
+                    unless ( defined ( $idsidx{$aref} ) )
+                      { die "Error, genotype --aref=\"$aref\" is not present in \"$infilename\"\n"; }
+                    $arefcol = $idsidx{$aref};
+                  }
+
+                # output header line
+                my @outcols = @ids;
+                if ( $outformat == 1 )
+                  { $outcols[0] = 'rs#'; }  # joinmap
+                elsif ( $outformat == 2 )
+                  { $outcols[0] = 'id'; }  # joinmap
+                else
+                  { $outcols[0] = 'Location'; }  # matrix
+                splice ( @outcols, 1, 8 );
+                if ( $counts )
+                  {
+                    @outcols = ( $outcols[0], '#REF', '#HET', '#ALT', '#MISSING',
+                                 '%REF', '%HET', '%ALT', '%MISSING',
+                                 '%REFofpresent', '%HETofpresent', '%ALTofpresent' );
+                  }
+                print $OUTF join ( $delim, @outcols ), "\n";
+                if ( $outformat == 2 )
+                  { print $OUTF join( $delim, '', ('un') x (scalar(@outcols)-1) ), "\n"; }
+              }
+          } # header line
+        else  # variant lines
+          {
+            # e.g. CHR1    645     .       C       A       132.61  .       AC=1;AF=0.021;AN=48;BaseQRankSum=1.53;
+            # ClippingRankSum=-1.890e-01;DP=798;FS=2.606;GQ_MEAN=57.21;GQ_STDDEV=41.81;InbreedingCoeff=-0.0674;
+            # MLEAC=1;MLEAF=0.021;MQ=46.40;MQ0=0;MQRankSum=-1.864e+00;NCC=12;QD=1.35;ReadPosRankSum=1.70
+            # GT:AD:DP:GQ:PL  0/0:16,0:16:48:0,48,654
+            my @cols = split ( /\t/, $aline );
+            # Filter out any variant with more than 2 alleles
+            my @alt = split ( /,/, $cols[4] );
+            my @outcols;
+            if ( ( scalar @alt ) == 1 )
+              {
+                my @abhmcount = ( 0, 0, 0, 0, 0 );
+                # output as 0=missing 1=ref 2=het 3=alt
+                # joinmap as .=missing a=ref h=het b=alt
+                for my $i ( 9 .. $#ids )
+                  {
+                    my @gt = split ( /:/, $cols[$i] );
+                    if ( $gt[0] =~ m:0[/\|]0: )  # homozygous reference
+                      { $abhmcount[0]++; $outcols[$i] = $abhmtxt[0]; }
+                    elsif ( $gt[0] =~ m:1[/\|]1: )  # homozygous alternate
+                      { $abhmcount[1]++; $outcols[$i] = $abhmtxt[2]; }
+                    elsif ( ( $gt[0] =~ m:0[/\|]1: ) or ( $gt[0] =~ m:1[/\|]0: ) )  # heterozygous
+                      { $abhmcount[2]++; $outcols[$i] = $abhmtxt[1]; }
+                    elsif ( $gt[0] =~ m:\.[/\|]\.: ) # not called
+                      { $abhmcount[3]++; $outcols[$i] = $abhmtxt[3]; }
+                    else  # missing
+                      { $abhmcount[4]++; $outcols[$i] = $abhmtxt[3]; }
+                    $suminfo[$i]->{$outcols[$i]}++;
+                  }
+
+
+                # filters
+                my $okay = 1;
+                if ( ( ( $abhmcount[3] + $abhmcount[4] ) * 100 / $numgt ) > $maxmissing )
+                  { $okay = 0; $filtmissing++; }
+                if ( ( $abhmcount[1] * 100 / $numgt ) < $minalt )
+                  { $okay = 0; $filtalt++; }
+                unless ( $okay )
+                  { $nfilt++; next; }
+
+                $outcols[0] = $cols[0] . '_' . $cols[1];
+                splice ( @outcols, 1, 8 );
+
+                if ( $counts )
+                  {
+                    my $npresent;
+                    my @n = ( 0, 0, 0, 0 );
+                    my @pct;
+                    my @pctofpresent;
+                    for my $i ( 1..$#cols )
+                      {
+                        if ( $outcols[$i] ) { $npresent++; }
+                        $n[($outcols[$i]||4)-1]++;  # [4] is missing data
+                      }
+                    for my $i ( 1..4 )
+                      { $pct[$i-1] = sprintf( "%0.3f", $n[$i-1] * 100 / $#cols ); }
+                    if ( $npresent )
+                      {
+                        for my $i ( 1..3 )
+                          { $pctofpresent[$i-1] = sprintf( "%0.3f", $n[$i-1] * 100 / $npresent ); }
+                      }
+                    @outcols = ( $outcols[0], @n, @pct, @pctofpresent );
+                  } # if $counts
+
+                # optional flip based on --aref genotype
+                if ( $aref )
+                  {
+                    my $arefgt = $cols[$arefcol];
+                    # this is lazy, assume genotype is first field
+                    $arefgt =~ s/:.*$//;
+                    # reverse if homozygous alternate
+                    if ( $arefgt =~ m|^1.1| )
+                      {
+                        for my $i ( 1..$#outcols )
+                          { $outcols[$i] =~ tr/ABab/BAba/; }
+                      }
+                  } # if $aref
+
+                print $OUTF join ( $delim, @outcols ), "\n";
+                $nsaved++;
+
+                # duplicate marker, with opposite phase A->B and B->A
+                if ( $twophase )
+                  {
+                    $outcols[0] .= 'r';  # reversed
+                    for my $i ( 1..$#outcols )
+                      { $outcols[$i] =~ tr/ABab/BAba/; }
+                    print $OUTF join ( $delim, @outcols ), "\n";
+                  }
+              }
+            else
+              { $ndropped++; }
+          } # else variant line
+
+      } # while <$INF>
+    if ( $summary )
+      {
+        print $OUTF "\n";
+
+        # header of genotype names
+        {
+        my @t = @ids;
+        splice( @t, 0, 9, 'state' );
+        print $OUTF join( $delim, @t ), "\n";
+        }
+
+        # line for each allele state
+        for my $val ( @abhmtxt )
+          {
+            my $t = $val || 'missing';
+            my @c = ( $t );
+            for my $i ( 9 .. $#ids )
+              { push( @c, $suminfo[$i]->{$val}//0 ); }
+            print $OUTF join( $delim, @c ), "\n";
+          }
+      }
+    stdclose ( $OUTF );
+    stdclose ( $INF );
+    unless ( $quiet )
+      {
+        print "Variants failing minimum homozygous alternate percent of $minalt = ".commify($filtalt)."\n";
+        print "Variants failing maximum missing percent of $maxmissing = ".commify($filtmissing)."\n";
+        print "Variants saved = ".commify($nsaved)."\n";
+        print "Variants filtered out = ".commify($nfilt)."\n";
+      }
+} # task_matrix
+
+
+
+############################################################
+sub task_linkage { my ( $infilename, $outfilename, $locusinfoname ) = @_;
+############################################################
+# linkage format as at https://www.broadinstitute.org/haploview/input-file-formats
+    my $INF = stdopen ( '<', $infilename );
+    my $OUTF = stdopen ( '>', $outfilename );
+    my $LOCF = stdopen ( '>', $locusinfoname );
+    my %encode = ( 'A' => 1, 'C' => '2', 'G' => 3, 'T' => 4 );
+    my $nlines = 0;
+    my $nsaved = 0;
+    my $ndropped = 0;
+    my @ids;
+#    my %idsidx;  # index of @ids
+#    my $idnum = 0;  # unique id number for family column
+    my $numgt; # number of genotypes
+    my $filtalt = 0;
+    my $filtmissing = 0;
+    my $nfilt = 0;  # total filtered out
+    my @matrix;
+#    my @abhmtxt = ( '1', '2', '3', '' );
+#    my $arefcol;  # column of reference genotype if using --aref
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # header and comment lines
+        if ( $aline =~ m/^#/ )
+          {
+            # genotypes line, e.g.
+            #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  I1      I2      I3 ...
+            if ( $aline =~ m/^#CHROM\t/ )
+              {
+                # store genotype IDs and make a reverse index to column number
+                @ids = split ( /\t/, $aline );
+#                for my $i ( 9 .. $#ids )
+#                  { $idsidx{$ids[$i]} = $i; }
+                $numgt = scalar(@ids) - 9;  # number of genotypes
+              }
+          } # header lines
+        else  # variant lines
+          {
+            # e.g. CHR1    645     .       C       A       132.61  .       AC=1;AF=0.021;AN=48;BaseQRankSum=1.53;
+            # ClippingRankSum=-1.890e-01;DP=798;FS=2.606;GQ_MEAN=57.21;GQ_STDDEV=41.81;InbreedingCoeff=-0.0674;
+            # MLEAC=1;MLEAF=0.021;MQ=46.40;MQ0=0;MQRankSum=-1.864e+00;NCC=12;QD=1.35;ReadPosRankSum=1.70
+            # GT:AD:DP:GQ:PL  0/0:16,0:16:48:0,48,654
+            my @cols = split ( /\t/, $aline );
+            # Filter out any variant with more than 2 alleles
+            my @alt = split ( /,/, $cols[4] );
+            if ( ( scalar @alt ) == 1 )
+              {
+                my $refcode = $encode{$cols[3]};
+                my $altcode = $encode{$cols[4]};
+                my @outcols;
+                my $okay = 1;
+                if ( ( $refcode ) and ( $altcode ) )  # skip if weird alleles
+                  {
+                    my @abhmcount = ( 0, 0, 0, 0, 0 );
+                    for my $i ( 9 .. $#ids )
+                      {
+                        my @gt = split ( /:/, $cols[$i] );
+                        if ( $gt[0] =~ m:0[/\|]0: )  # homozygous reference
+                          { $abhmcount[0]++; $outcols[$i] = $refcode . ' ' . $refcode; }
+                        elsif ( $gt[0] =~ m:1[/\|]1: )  # homozygous alternate
+                          { $abhmcount[1]++; $outcols[$i] = $altcode . ' ' . $altcode; }
+                        elsif ( ( $gt[0] =~ m:0[/\|]1: ) or ( $gt[0] =~ m:1[/\|]0: ) )  # heterozygous
+                          { $abhmcount[2]++; $outcols[$i] = $refcode . ' ' . $altcode; }
+                        elsif ( $gt[0] =~ m:\.[/\|]\.: ) # not called
+                          { $abhmcount[3]++; $outcols[$i] = '0 0'; }
+                        else  # missing
+                          { $abhmcount[4]++; $outcols[$i] = '0 0'; }
+                      } # for $i
+                    # filters
+                    if ( ( ( $abhmcount[3] + $abhmcount[4] ) * 100 / $numgt ) > $maxmissing )
+                      { $okay = 0; $filtmissing++; }
+                    if ( ( $abhmcount[1] * 100 / $numgt ) < $minalt )
+                      { $okay = 0; $filtalt++; }
+                  }
+                else
+                  { print "Warning, skipping strange alleles \"$cols[3]\" \"$cols[4]\"\n"; $okay = 0; }
+
+                # chromosome filter
+                if ( ( defined $filtchr ) and ( $cols[0] ne $filtchr ) )
+                  { $okay = 0; }
+
+                unless ( $okay )
+                  { $nfilt++; next; }
+
+                # pass filters, store
+                push( @matrix, \@outcols );
+                $nsaved++;
+                # locus information file: markername  markerposition(integer)
+                print $LOCF join( "\t", $cols[2], $cols[1] ), "\n";
+              }
+            else
+              { $ndropped++; }
+          } # else variant line
+
+      } # while <$INF>
+
+    # flip matrix and write to output file
+    for my $i ( 9 .. $#ids )
+      {
+        my @outcols = ( $i-8, $ids[$i], 0, 0, 0, 0 );
+        for my $j ( 0 .. $#matrix )
+          {
+            push ( @outcols, $matrix[$j]->[$i] );
+          } # for $j
+        print $OUTF join( "\t", @outcols ), "\n";
+      } # for $i
+
+    stdclose ( $LOCF );
+    stdclose ( $OUTF );
+    stdclose ( $INF );
+    unless ( $quiet )
+      {
+        print "Variants failing minimum homozygous alternate percent of $minalt = ".commify($filtalt)."\n";
+        print "Variants failing maximum missing percent of $maxmissing = ".commify($filtmissing)."\n";
+        print "Variants saved = ".commify($nsaved)."\n";
+        print "Variants filtered out = ".commify($nfilt)."\n";
+      }
+} # task_linkage
+
+
+
+############################################################
+sub task_gf { my ( $infilename, $outfilename ) = @_;
+############################################################
+  unless ( defined $maxmissing )
+    { die "--maxmissing required for --task=genotypefilter\n"; }
+  # first pass, get counts for each genotype
+  unless ( $quiet ) { print "Pass 1 = Counting non-missing data\n"; }
+  my @counts;
+  my @ids;
+  my $nsites = 0;
+  {
+  my $nlines = 0;
+  my $INF = stdopen ( "<", $infilename );
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      my @cols = split( /\t/, $aline );
+      # header and comment lines
+      if ( $aline !~ m/^#/ )
+        {
+          $nsites++;
+          for my $i ( 9..$#cols )
+            {
+              if ( $cols[$i] !~ m/^\./ ) { $counts[$i]++; }
+            }
+        }
+      elsif ( $aline =~ m/^#CHROM\t/ )
+        { @ids = @cols; }
+    } # while $INF
+  stdclose( $INF );
+  unless ( $quiet ) { print commify($nlines)." lines processed\n"; }
+  }
+
+  # set deletion flags
+  my @delete;
+  my $ndrop = 0;
+  {
+  for my $i ( 9..$#counts )
+    {
+      my $pct = ( $counts[$i] // 0 ) * 100 / $nsites;
+      if ( $pct < ( 100 - $maxmissing ) )
+        {
+          $delete[$i] = 1;
+          $ndrop++;
+          unless ( $quiet ) { print "Drop sample $i \"$ids[$i] $counts[$i] / $nsites = ".sprintf('%0.3f',$pct)."\%\"\n"; }
+        }
+    } # for $i
+  }
+  unless ( $quiet ) { print "Pass 2: Will drop ".commify($ndrop)." genotypes with > $maxmissing% missing sites\n"; }
+
+  # second pass, filter genotypes
+  my $INF = stdopen ( "<", $infilename );
+  $gzipbin = $bgzipbin;
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      my @cols = split( /\t/, $aline );
+      # header and comment lines
+      if ( ( $aline !~ m/^#/ ) or ( $aline =~ m/^#CHROM/ ) )
+        {
+          my @outcols;
+          for my $i ( 0..$#cols )
+            {
+              unless ( $delete[$i] )
+                { push( @outcols, $cols[$i] ); }
+            }
+          $aline = join( "\t", @outcols );
+        }
+      print $OUTF $aline, "\n";
+    } # while $INF
+
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+} # task_gf
+
+
+
+############################################################
+sub task_madmapper { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF;
+  my $nlines = 0;
+  my $totalsnps = 0;
+  my $outheader;
+  my $outfilechrname;
+  my $ngenotypes;
+  my $currchr = '';
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # only use $CHROM header line
+      if ( $aline =~ m/^#/ )
+        {
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              my @cols = split(/\t/, $aline);
+              $ngenotypes = scalar(@cols) - 9;
+              $outheader = ";\t" . join("\t",(1..$ngenotypes)) . "\n";
+              $outheader .= ";\t" . join("\t",@cols[9..$#cols]) . "\n";
+            }
+        }
+      else
+        {
+          my @cols = split ( /\t/, $aline );
+          my $gtcol;
+          my $adcol;
+          my @info = split ( /:/, $cols[8] );
+          #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  id1  ...
+          for my $i ( 0..$#info )
+            {
+              if ( $info[$i] eq 'GT' ) { $gtcol = $i; }
+              if ( $info[$i] eq 'AD' ) { $adcol = $i; }
+            }
+          if ( $cols[0] ne $currchr )
+            {
+              $currchr = $cols[0];
+              if ( $OUTF ) { stdclose( $OUTF ); }
+              # insert chromosome before extension
+              ( $outfilechrname = $outfilename ) =~ s/(\.[^\.]*$)/.$currchr$1/;
+              if ( $outfilechrname eq $outfilename )
+                { die "Error inserting chromosome \"$currchr\" in file name \"$outfilename\"\n"; }
+              $OUTF = stdopen( '>', $outfilechrname );
+              print $OUTF $outheader;
+            }
+          my @outcols = ( $cols[0].'_'.$cols[1] );
+          for my $i ( 1..$ngenotypes )
+            {
+              unless ( $cols[$i+8] ) { die "Bug no data column $i + 8 line $nlines\n"; }
+              my @parts = split( /:/, $cols[$i+8] );
+              my $gt = $parts[$gtcol];
+              my $code = '-';
+              if ( $gt =~ m|0.0| )
+                { $code = 'A'; }
+              elsif ( $gt =~ m|1.1| )
+       	       	{ $code	= 'B'; }
+              elsif ( $gt =~ m|0.1| )
+       	       	{ $code	= 'H'; }
+              elsif ( $gt =~ m|1.0| )
+       	       	{ $code	= 'H'; }
+              $outcols[$i] = $code;
+            }
+          print $OUTF join( "\t", @outcols ), "\n";
+        } # else body line
+    } # while <$INF>
+  stdclose( $OUTF );
+  stdclose( $INF );
+} # sub task_madmapper
+
+
+
+############################################################
+sub task_order { my ( $infilename, $outfilename ) = @_;
+############################################################
+    # load keyfile and save in %keyorder, key is genotype name, value is new order
+    # first 12 columns, before genotype columns, will remain unchanged
+    my %keyorder;
+    my %newname;
+    {
+    my $nlines = 0;
+    my $INF = stdopen ( "<", $keyfile );
+    my $order = 9;  # first columns 0..8 of vcf are not samples
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+        next if ( $aline =~ m/^\s*#/ );  # comment lines are ignored
+        next if ( $aline =~ m/^\s*$/ );  # blank lines are ignored
+        my @cols = split( /\t/, $aline );
+        if ( defined $keyorder{$cols[0]} )
+          { print "Warning, ignoring duplicate definition of \"$cols[0]\" in keyfile \"$keyfile\" line $nlines\n"; }
+        else
+          {
+            $keyorder{$cols[0]} = $order++;  # [0..8] unchanged, start at [9]
+            if ( ( defined $cols[1] ) and ( length($cols[1]) ) )
+              { $newname{$cols[0]} = $cols[1]; }
+            debugmsg ( "Sample order for \"$aline\" = $keyorder{$cols[0]}" );
+          }
+      }
+    stdclose ( $INF );
+    }
+
+    {
+    my $INF = stdopen ( "<", $infilename );
+    $gzipbin = $bgzipbin;
+    my $OUTF = stdopen ( ">", $outfilename );
+    my $nlines = 0;
+    my @ids;
+    my $numgt; # number of genotypes
+    while ( my $aline = <$INF> )
+      {
+        $nlines++;
+        $aline =~ s/[\r\n]//g;
+
+        # genotypes line, e.g.
+        #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  I1      I2      I3 ...
+        if ( $aline =~ m/^#CHROM\t/ )
+          {
+            # store genotype IDs and make a reverse index to column number
+            @ids = split ( /\t/, $aline );
+
+
+            # make sure all names in keyfile are in the vcf file
+            {
+            my $okay = 1;
+            my %oldids;
+            for my $i ( 9 .. $#ids )
+              { $oldids{$ids[$i]} = $i; }
+            foreach my $key ( sort keys %keyorder )
+              {
+                unless ( defined $oldids{$key} )
+                  {
+                    print $lenient?"Notice":"Error";
+                    print ", sample \"$key\" in keyfile \"$keyfile\" is not present in the vcf file\n";
+                    $okay = 0;
+
+                    # remove from %keyorder and shift all higher numbers up by one
+                    if ( $lenient )
+                      {
+                        my $dropvalue = $keyorder{$key};
+                        delete( $keyorder{$key} );
+                        foreach my $key ( keys %keyorder )
+                          {
+                            if ( $keyorder{$key} > $dropvalue )
+                              { $keyorder{$key}--; }
+                          }
+                      } # if $lenient
+                  } # unless $oldids{$key}
+              } # for $key in %keyorder
+            unless ( ( $okay ) or ( $lenient ) )
+              {
+                print "Use --lenient to allow this situation\n";
+                exit( 1 );
+              }
+            }
+
+            for my $i ( 0 .. $#ids )
+              {
+                # add unchanged columns to the new order loaded previously
+                if ( $i <= 8 )
+                  { $keyorder{$ids[$i]} = $i; }
+                else
+                  {
+                    if ( ! defined $keyorder{$ids[$i]} )
+                      {
+                        if ( $lenient )
+                          {
+                            unless ( $quiet )
+                              { print "Removing sample \"$ids[$i]\" column $i\n"; }
+                            $keyorder{$ids[$i]} = -1;
+                          }
+                        else
+                          { die "Error, sample \"$ids[$i]\" not found in keyfile\n"; }
+                      }
+                  }
+              }
+            $numgt = scalar(@ids) - 9;  # number of genotypes
+
+            # rename sample identifiers here
+            my @newids;
+            for my $i ( 0..$#ids )
+              { push( @newids, ( $newname{$ids[$i]} // $ids[$i] ) ); }
+            # put back for the reordering step below
+            $aline = join( "\t", @newids );
+          }
+
+        # variant lines or #CHROM line
+        if ( ( $aline !~ m/^#/ ) or ( $aline =~ m/^#CHROM\t/ ) )
+          {
+            my @cols = split ( /\t/, $aline );
+            my @outcols;
+            for my $i ( 0 .. $#cols )
+              {
+                unless ( defined $keyorder{$ids[$i]} )
+                  { die "Error, no order for sample \"$ids[$i]\", column $i, check keyfile \"$keyfile\"\n"; }
+                # in --lenient mode, samples not in --keyfile were set
+                #   to -1 for keyorder, and will be dropped here
+                if ( $keyorder{$ids[$i]} != -1 )
+                  {
+                    if ( defined $outcols[$keyorder{$ids[$i]}] )
+                      { die "Error line $nlines, duplicate definition for column $keyorder{$ids[$i]} ids[$i]=$ids[$i] from ".
+                            "input column $i, want to assign $cols[$i] but already equals $outcols[$keyorder{$ids[$i]}]\n"; }
+                    $outcols[$keyorder{$ids[$i]}] = $cols[$i];
+                  }
+              }
+            # for bug detection
+            if ( $nlines <= 100 )
+              {
+                for my $i ( 0..$#outcols )
+                  {
+                    if ( ! defined $outcols[$i] )
+                      { die "Undefined column $i of $#outcols line $nlines id \"$ids[$i]\"\n"; }
+                  }
+              }
+            print $OUTF join ( "\t", @outcols ), "\n";
+          } # variant line
+        else
+          {
+            print $OUTF $aline, "\n";
+          } # else header line
+
+      } # while <$INF>
+    stdclose ( $OUTF );
+    stdclose ( $INF );
+    unless ( $quiet ) { print commify($nlines)." lines, ".commify($numgt)." genotypes processed\n"; }
+    if ( $makeindex ) { indexvcf( $outfilename ); }
+    }
+} # sub task_order
+
+
+
+############################################################
+sub task_grep { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my $INF = stdopen ( "<", $infilename );
+  $gzipbin = $bgzipbin;
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $numsaved = 0; # number of lines kept
+  my $nremoved = 0; # number of lines removed
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      my $keep = 1;
+
+      # all header lines pass through except apply grep to
+      ###contig=<ID=scaffold56,length=6439>
+      if ( $aline =~ m/^#/ )
+        {
+          if ( $aline =~ m/^##contig=<ID=([^,]+)/ )
+            { $keep = grepfilt ( $1 ); }
+        }
+      else
+        {
+          ( my $test = $aline ) =~ s/\t.*$//;
+          $keep = grepfilt ( $test );
+        }
+      if ( $keep )
+        {
+          $numsaved++;
+          print $OUTF $aline, "\n";
+        }
+      else
+        { $nremoved++; }
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  unless ( $quiet ) { print commify($nlines)." lines, ".commify($numsaved)." lines saved, ".commify($nremoved)." lines removed\n"; }
+  if ( $makeindex ) { indexvcf( $outfilename ); }
+} # sub task_grep
+
+
+
+############################################################
+sub grepfilt { my ( $test ) = @_;
+############################################################
+  if ( $v )  # inverse
+    {
+      foreach my $agrep ( @greps )
+        {
+          if ( $test =~ m/$agrep/ ) { return 0; }
+        }
+      return 1;
+    }
+  else
+    {
+      foreach my $agrep ( @greps )
+        {
+          if ( $test =~ m/$agrep/ ) { return 1; }
+        }
+      return 0;
+    }
+} # sub grepfilt
+
+
+
+############################################################
+sub task_het { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my $changemode = 1;  # 1 = minratio<=maxratio, change het to hom,
+                       # 0 = minratio>maxratio, change hom to het
+  if ( $minratio > $maxratio ) { $changemode = 0; }
+  my $INF = stdopen ( "<", $infilename );
+  $gzipbin = $bgzipbin;
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $totalsnps = 0;
+  my $nchanged = 0; # number of heterozygous calls changed
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      my $keep = 1;
+
+      # all header lines pass through
+      if ( $aline =~ m/^#/ )
+        {
+          print $OUTF $aline, "\n";
+        }
+      else
+        {
+          my @cols = split ( /\t/, $aline );
+          my $gtcol;
+          my $adcol;
+          my @info = split ( /:/, $cols[8] );
+          #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  id1  ...
+          for my $i ( 0..$#info )
+            {
+              if ( $info[$i] eq 'GT' ) { $gtcol = $i; }
+              if ( $info[$i] eq 'AD' ) { $adcol = $i; }
+            }
+          unless ( defined $gtcol ) { die "Error, no \"GT\" INFO field line $nlines\n"; }
+          unless ( defined $adcol ) { die "Error, no \"AD\" INFO field line $nlines\n"; }
+          for my $i ( 9..$#cols )
+            {
+              $totalsnps++;
+              @info = split ( /:/, $cols[$i] );
+              my $splitchar = ( $info[$gtcol] =~ m/\|/ )?'|':'/';
+              my @gt = split( '[\|/]', $info[$gtcol] );
+              # skip if not heterozygous, or more than two alleles
+              my @ad = split( /,/, $info[$adcol] );
+              if ( $#ad == 1 )
+                {
+                  my $totdepth = $ad[0] + $ad[1];
+                  if ( $totdepth > 0 )
+                    {
+                      my $ratio = $ad[0] / $totdepth;
+                      if ( $changemode )  # minratio<=maxratio
+                        {
+                          if ( $gt[0] ne $gt[1] )
+                            {
+                              if ( ( $ratio < $minratio ) or ( $ratio > $maxratio ) )
+                                {
+                                  if ( $tomissing )
+                                    { $info[$gtcol] = ".$splitchar."; }
+                                  elsif ( $ratio > $maxratio )
+                                    { $info[$gtcol] = "0${splitchar}0"; }
+                                  else
+                                    { $info[$gtcol] = "1${splitchar}1"; }
+                                  $cols[$i] = join( ':', @info );
+                                  $nchanged++;
+                                }
+                            } # is heterozygous
+                        } # changemode 1
+                      else  # minratio>maxratio
+                        {
+                          if ( $gt[0] eq $gt[1] )
+                            {
+                              if ( ( $ratio < $minratio ) and ( $ratio > $maxratio ) )
+                                {
+                                  if ( $tomissing )
+                                    { $info[$gtcol] = ".$splitchar."; }
+                                  else
+                                    {
+                                      if ( $ad[0] >= $ad[1] )
+                                        { $info[$gtcol] = "0${splitchar}1"; }
+                                      else
+                                        { $info[$gtcol] = "1${splitchar}0"; }
+                                      $cols[$i] = join( ':', @info );
+                                      $nchanged++;
+                                    }
+                                }
+                            } # is non-zero depth
+                        } # changemode 0
+                    } # totdepth > 0
+                } # 2 alleles
+            } # for $i
+          print $OUTF join( "\t", @cols ), "\n";
+        } # else not header
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  my $pctchanged = sprintf ( "%0.3f", $nchanged * 100 / $totalsnps );
+  unless ( $quiet ) { print commify($nlines)." lines processed, ".commify($nchanged)." heterozygous sites changed out of ".
+                      commify($totalsnps)." = $pctchanged\%\n"; }
+  if ( $makeindex ) { indexvcf( $outfilename ); }
+} # sub task_het
+
+
+
+############################################################
+sub task_lookup { my ( $infilename, $outfilename, $lookupfilename, $column, $filterid, $filterdescription ) = @_;
+############################################################
+
+  # read lookup and store in %pass
+  my %pass;
+  {
+  my $nlines = 0;
+  my $INF = stdopen ( "<", $lookupfilename );
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      my @cols = split( /\t/, $aline );
+      $pass{$cols[$column-1]}++;
+    }
+  stdclose( $INF );
+  unless ( $quiet ) { print commify(scalar(keys(%pass)))." sites to mark as PASS\n"; }
+  }
+
+  my $INF = stdopen ( "<", $infilename );
+  $gzipbin = $bgzipbin;
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $npassed = 0;
+  my $nfailed = 0;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+      if ( $aline =~ m/^#/ )
+        {
+          # insert header line before #CHROM line
+          if ( $aline =~ m/^#CHROM/ )
+            { print $OUTF "##FILTER=<ID=$filterid,Description=\"$filterdescription\">\n"; }
+          print $OUTF $aline, "\n";
+        }
+      else
+        {
+          my @cols = split( /\t/, $aline );
+          if ( $pass{$cols[2]} )
+            {
+              if ( ( $cols[6] ne 'PASS' ) and (  $cols[6] ne '.' ) )
+                { die "Error, line $nlines site $cols[0] $cols[1] $cols[2] not PASS \"$cols[6]\"\n"; }
+              $npassed++;
+            }
+          else
+            {
+              if ( ( $cols[6] eq 'PASS' ) or ( $cols[6] eq '.' ) )
+                { $cols[6] = $filterid; }
+              else
+                { $cols[6] .= ";$filterid"; }
+              $nfailed++;
+            }
+          print $OUTF join( "\t", @cols), "\n";
+        }
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  unless ( $quiet ) { print commify($nlines)." lines, ".commify($npassed)." pass, ".commify($nfailed)." failed filter\n"; }
+  if ( $makeindex ) { indexvcf( $outfilename ); }
+} # sub task_lookup
+
+
+
+############################################################
+sub task_downsample { my ( $infilename, $outfilename, $windowsize, $variantsperwindow ) = @_;
+############################################################
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nsaved = 0;
+  my $nvariants = 0;
+  my $currchr = '';
+  my $currwin = 0;
+  my @saved;  # variants in current window
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          print $OUTF $aline, "\n";
+        }
+      else  # variant lines
+        {
+          $nvariants++;
+          my @cols = split( /\t/, $aline );
+          my $thiswindow = int( $cols[1] / $windowsize );  # first window is 0
+          # test for starting a new window
+          if ( ( $cols[0] ne $currchr ) or ( $thiswindow != $currwin ) )
+            { $nsaved += downsamplewindow( $OUTF, $variantsperwindow, @saved ); }
+          undef( @saved );
+          $currchr = $cols[0];
+          $currwin = $thiswindow;
+          push( @saved, $aline );
+        }
+    } # while <$INF>
+  $nsaved += downsamplewindow( $OUTF, $variantsperwindow, @saved );
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  unless ( $quiet )
+    {
+      print "Variants saved = ".commify($nsaved)."\n";
+      print "Variants filtered out = ".commify($nvariants-$nsaved)."\n";
+    }
+} # sub task_downsample
+
+
+
+############################################################
+sub task_parent { my ( $infilename, $outfilename, $parentidsref ) = @_;
+############################################################
+  my @parentindices;  # columns of parent genotypes
+  my @header;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  my $nremovedvariants = 0;
+  my $nmissing = 0;
+  my @counts;
+  unless ( @{$parentidsref} ) { die "Error, no --parentids provided\n"; }
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          print $OUTF $aline, "\n";
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+              for my $i ( 9..$#header )
+                {
+                  for my $j ( 0..$#$parentidsref )
+                    {
+                      if ( $header[$i] eq $parentidsref->[$j] )
+                        {
+                          unless( $quiet )
+                            { print "Parent \"$header[$i]\" present in column ".($i+1)." of vcf\n"; }
+                          push( @parentindices, $i );
+                        }
+                    } # for $j
+                } # for $i
+              unless( (scalar @parentindices) == (scalar @$parentidsref) )
+                { die "Error, not all --parentid names were defined in vcf\n"; }
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my $allmissing = 1;
+          my @cols = split( /\t/, $aline );
+
+          # collect parent alleles. Skip missing '.'
+          my @parentalleles;
+          for my $i ( @parentindices )
+            {
+              my @p = split( /:/, $cols[$i] );
+              if ( $p[0] =~ m/^(\d+)\D(\d+)$/ )
+                {
+                  $parentalleles[$1]++;
+                  $parentalleles[$2]++;
+                }
+            } # for $i
+#if ( $nvariantlines <= 20 ) { print "\nSite $cols[0] $cols[1]\n"; for my $k ( 1..$#parentalleles ) { print "parent allele $k=".($parentalleles[$k]//0)."\n"; } } #@@@
+
+          # convert samples with new alleles to missing
+          # not checking for parent columns, but they by definition will pass filter
+          for my $i ( 9..$#cols )
+            {
+              my @p = split( /:/, $cols[$i] );
+              if ( $p[0] =~ m/^(\d+)(\D)(\d+)$/ )
+                {
+                  if ( ( ! $parentalleles[$1] ) or ( ! $parentalleles[$3] ) )
+                    {
+#if ( $nvariantlines <= 20 ) { print "Remove sample $i genotype $p[0]\n"; } #@@@
+                      $p[0] = '.' . $2 . '.';
+                      $cols[$i] = join( ':', @p );
+                      $nmissing++;
+                      $counts[$i]++;
+                    }
+                  else
+                    { $allmissing = 0; }
+                }
+            } # for $i
+          if ( $allmissing )
+            { $nremovedvariants++; }
+          else
+            { print $OUTF join( "\t", @cols ), "\n"; }
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  unless ( $quiet )
+    {
+      print "Variant loci = ".commify($nvariantlines)."\n";
+      print "Variant loci removed = ".commify($nremovedvariants)."\n";
+      print "Variants reverted to missing = ".commify($nmissing)."\n";
+      print "Genotype\tNumber reverted\n";
+      for my $i ( 9..$#header )
+        { print join( "\t", $header[$i], ( $counts[$i] // 0 ) ), "\n"; }
+    }
+} # sub task_parent
+
+
+
+############################################################
+sub task_invert { my ( $infilename, $outfilename, $parentidsref ) = @_;
+############################################################
+  my @parentindices;  # columns of parent genotypes
+  my @header;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  my @counts;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+              for my $i ( 9..$#header )
+                {
+                  for my $j ( 0..$#$parentidsref )
+                    {
+                      if ( $header[$i] eq $parentidsref->[$j] )
+                        {
+                          unless( $quiet )
+                            { print "Parent \"$header[$i]\" present in column ".($i+1)." of vcf\n"; }
+                          push( @parentindices, $i );
+                          $header[$i] .= "\t" . $header[$i] . 'inverted';
+                        }
+                    } # for $j
+                } # for $i
+              unless( (scalar @parentindices) == (scalar @$parentidsref) )
+                { die "Error, not all --parentid names were defined in vcf\n"; }
+              $aline = join( "\t", @header );
+            } # genotype definition line
+          print $OUTF $aline, "\n";
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+
+          # inversion
+          my @parentalleles;
+          for my $i ( @parentindices )
+            {
+              my $inv = $cols[$i];
+              my @p = split( /:/, $inv );
+              if ( $p[0] =~ m/^(\d+)(\D)(\d+)$/ )
+                {
+                  if ( $1 eq $3 )
+                    {
+                      # 0/0 becomes 1/1, 1/1 becomes 0/0
+                      $p[0] =~ tr/01/10/;
+#                      $p[0] = $3 . $2 . $1;
+#                      # swap first and second values of all multi-number fields
+#                      for my $j ( 1..$#p )
+#                        {
+#                          if ( $p[$j] =~ m/^(\d),(\d)(.*)/ )
+#                            { $p[$j] = $2 . ',' . $1  . $3; }
+#                        }
+                      $inv = join( ':', @p );
+                    }
+                } # if
+              $cols[$i] .= "\t" . $inv;
+            } # for $i
+          print $OUTF join( "\t", @cols ), "\n";
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+  unless ( $quiet )
+    {
+      print "Variant loci = ".commify($nvariantlines)."\n";
+    }
+} # sub task_invert
+
+
+
+############################################################
+sub task_majorminor { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my @header;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  my @counts;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+              splice( @header, 9, 0, 'Major', 'Minor' );
+              print $OUTF join( "\t", @header), "\n";
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+
+          my $ref = $cols[3];
+          my $alt = $cols[4];
+          my $nfields = scalar(split(/:/, $cols[8]));
+
+          # get counts of allele scores
+          my %counts;
+          for my $i ( 9..$#cols )
+            {
+              my $a1 = substr( $cols[$i], 0, 1 );
+              my $a2 = substr( $cols[$i], 2, 1 );
+              $counts{$a1}++;
+              $counts{$a2}++;
+            }
+          my $nref = $counts{'0'} // 0;
+          my $nalt = $counts{'1'} // 0;
+          my $nmis = $counts{'.'} // 0;
+
+          my @mm = ( '', '' );
+          my $restofentry = ':.' x ( $nfields-1 );
+          if ( $nalt > $nref )
+            { @mm = ( '1/1'.$restofentry, '0/0'.$restofentry ); }
+          else  # $nref >= $nalt
+            { @mm = ( '0/0'.$restofentry, '1/1'.$restofentry ); }
+
+          splice( @cols, 9, 0, @mm );
+          print $OUTF join( "\t", @cols ), "\n";
+
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $OUTF );
+  stdclose ( $INF );
+} # sub task_majorminor
+
+
+
+############################################################
+sub task_stats { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my @header;
+  my %counts;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  my $sawmbsnp = 0;  # mulit-base-snp
+  my $sawnoalt = 0;  # no alternate allele
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+          my $ref = $cols[3];
+          my @alt = split( /,/, $cols[4] );
+          my $filter = $cols[6] // '';
+          # categorize as: SNP + #alleles
+          #                INDEL + #alleles
+          #                Combo SNP+INDEL + #alleles
+          my $reflen = length($ref);
+          my @altlen;
+          foreach ( @alt )
+            {
+              # 20210802 start ignoring the '*' alleles for length determination
+              if ( ( $_ ne '*' ) and ( $_ ne '<NON_REF>' ) and ( $_ ne '.' ) )
+                { push( @altlen, length($_) ); }
+            }
+          @altlen = sort( { $a<=>$b } @altlen );
+          my $nalt = scalar(@altlen);
+          my $type;
+          if ( ($cols[4] eq '.') or ($cols[4] eq '*')
+            or ($cols[4] eq '<NON_REF>') or ($cols[4] eq '*,<NON_REF>') or ($cols[4] eq '<NON_REF>,*') )
+            {
+              $type = "NO_ALT";
+              $sawnoalt = 1;
+            }
+          elsif ( $reflen == 1 )
+            {
+              if ( ( $altlen[0] == 1 ) and ( $altlen[$#altlen] == 1 ) )
+                { $type = 'SNP'; }
+              elsif ( $altlen[0] == 1 )  # at least one SNP
+                { $type = 'Combo'; }
+              else
+                { $type = 'INDEL'; }
+            }
+          else  # $reflen != 1
+            {
+              if ( ( $altlen[0] == $reflen ) and ( $altlen[$#altlen] == $reflen ) )
+                { $type = 'MBSNP'; $sawmbsnp = 1; }
+              else
+                { $type = 'INDEL'; }
+            }
+          $counts{$type}->{$filter}->{$nalt}++;
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $INF );
+
+  # generate report
+  print $OUTF join( "\t", 'Type', 'Filter', '#alleles', 'Count' ), "\n";
+  my $grandtotal = 0;
+  my @types = ( 'SNP', 'INDEL', 'Combo' );
+  if ( $sawmbsnp ) { push( @types, 'MBSNP' ); }
+  if ( $sawnoalt ) { push( @types, 'NO_ALT' ); }
+  for my $type ( @types )
+    {
+      my $ttotal = 0;
+      for my $f ( sort keys %{$counts{$type}} )  # e.g. PASS LowQual QDlt2
+        {
+          my $total = 0;
+          for my $nalt ( sort {$a<=>$b} keys %{$counts{$type}->{$f}} )
+            {
+              my $c = $counts{$type}->{$f}->{$nalt};
+              print $OUTF join( "\t", $type, $f, $nalt+1, $c ), "\n";
+              $total += $c;
+              $ttotal += $c;
+              $grandtotal += $c;
+            } # for $nalt
+          print $OUTF join( "\t", $type, $f, 'total', $total ), "\n";
+       }
+      print $OUTF join( "\t", $type, '-', 'total', $ttotal ), "\n";
+    } # for $type
+  print $OUTF join( "\t", 'Total', '-', '-', $grandtotal ), "\n";
+
+  stdclose ( $OUTF );
+} # sub task_stats
+
+
+
+############################################################
+sub task_depth { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my @header;
+  my %counts;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  my $ntaxa;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+          if (!$ntaxa) { $ntaxa = scalar(@cols) - 9; }
+          my $format = $cols[8] // '';
+          my %dp;
+          my $c = 0;
+          for (split(/:/, $format)) {$dp{$_} = $c++}
+          my $total = 0;
+          if (defined($dp{'DP'}))
+            {
+              for my $i ( 9 .. $#cols )
+                {
+                  my @parts = split(/:/, $cols[$i]);
+my $d = $parts[$dp{'DP'}];
+if ($d > 127) { print "depth $d line $nvariantlines\n"; } #@@@
+                  $total += $parts[$dp{'DP'}];
+                }
+            }
+          else
+            { die "No DP line $nlines\n"; }
+          
+          $counts{$total}++;
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $INF );
+
+  # generate report
+  print $OUTF join( "\t", 'Depth', 'Mean Depth', 'Count' ), "\n";
+  my $total = 0;
+  for my $depth (sort {$a<=>$b} keys %counts)
+    {
+      my $mean = sprintf( '%0.2f', $depth / $ntaxa);
+      print $OUTF join("\t", $depth, $mean, $counts{$depth}), "\n";
+      $total += $counts{$depth};
+    }
+  print $OUTF join( "\t", 'Total sites', $total ), "\n";
+
+  stdclose ( $OUTF );
+} # sub task_depth
+
+
+
+############################################################
+sub task_quality { my ( $infilename, $outfilename, $sites ) = @_;
+############################################################
+  my %counts;
+  my %definitions;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          ###FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths f..">
+          # save definitions
+          if ( $aline =~ m|=<ID=([^,]+),(.*)>| )
+            { $definitions{$1} = $2; }
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          last if ( ( $sites ) and ( $nvariantlines > $sites ) );
+          #[0]DCARv2_Chr9	[1]8265457	[2].	[3]A	[4]T	[5]572.81	[6].
+          #[7]AC=2;AF=0.333;AN=6;DP=162;ExcessHet=0.4576;FS=0.000;MLEAC=123;MLEAF=1.00;MQ=4.28;QD=25.36;SOR=1.609
+          #[8]GT:AD:DP:GQ:PL
+          my @cols = split( /\t/, $aline );
+          my @scores = split( /;/, $cols[7] );
+          for my $score ( @scores )
+            {
+              unless ( $score =~ m|^([^=]+)=(.+)$| )
+                { die "Bug, can't parse line $nlines score \"$score\"\n"; }
+              my $id = $1;
+              my @values = split( /,/, $2 );
+              for my $i ( 0..$#values )
+                {
+                  my $value = $values[$i];
+                  $counts{$id}->{n}->[$i]++;
+                  $counts{$id}->{total}->[$i]+=$value;
+                  if ( ( ! defined($counts{$id}->{min}->[$i]) ) or ( $value < $counts{$id}->{min}->[$i] ) )
+                    { $counts{$id}->{min}->[$i] = $value; }
+                  if ( ( ! defined($counts{$id}->{max}->[$i]) ) or ( $value > $counts{$id}->{max}->[$i] ) )
+                    { $counts{$id}->{max}->[$i] = $value; }
+                } # for $i
+            } # for $score
+        } # else variantlines
+    } # while <$INF>
+  close ( $INF );
+
+  # generate report
+  print $OUTF join( "\t", 'Type', 'n', 'mean', 'minimum', 'maximum', 'Definition' ), "\n";
+  for my $type ( sort keys %counts )
+    {
+      my @means;
+      for my $i ( 0..$#{$counts{$type}->{n}} )
+        { push ( @means, sprintf( '%0.4f', $counts{$type}->{total}->[$i] / $counts{$type}->{n}->[$i] ) ); }
+      my @outcols = ( $type,
+                      join(',',@{$counts{$type}->{n}}),
+                      join(',',@means),
+                      join(',',@{$counts{$type}->{min}}),
+                      join(',',@{$counts{$type}->{max}}),
+                      $definitions{$type} // "$type no definition" );
+      print $OUTF join( "\t", @outcols ), "\n";
+    } # for $type
+  stdclose ( $OUTF );
+} # sub task_quality
+
+
+
+############################################################
+sub task_frequency { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my @header;
+  my @counts;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+          for my $i ( 9 .. $#cols )
+            {
+              ( my $gt = $cols[$i] ) =~ s/:.*$//;
+              $counts[$i]->{$gt}++;
+              $counts[0]->{$gt}++;  # total, used to generate keys of all possible genotypes
+            }
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $INF );
+
+  # generate report
+  my @gts = sort keys %{$counts[0]};
+  print $OUTF join( "\t", 'Taxon', @gts ), "\n";
+  for my $i ( 9 .. $#header )
+    {
+      print $OUTF $header[$i];
+      for my $j ( 0 .. $#gts )
+        { print $OUTF "\t", $counts[$i]->{$gts[$j]} // 0; }
+      print $OUTF "\n";
+    }
+
+  stdclose ( $OUTF );
+} # sub task_frequency
+
+
+
+############################################################
+sub task_readcounts { my ( $infilename, $outfilename ) = @_;
+############################################################
+  my @header;
+  my @counts;
+  my $maxallele = 0;
+  my $INF = stdopen ( "<", $infilename );
+  my $OUTF = stdopen ( ">", $outfilename );
+  my $nlines = 0;
+  my $nvariantlines = 0;
+  while ( my $aline = <$INF> )
+    {
+      $nlines++;
+      $aline =~ s/[\r\n]//g;
+
+      # header and comment lines
+      if ( $aline =~ m/^#/ )
+        {
+          # lookup parent columns from supplied names
+          if ( $aline =~ m/^#CHROM/ )
+            {
+              @header = split( /\t/, $aline );
+            } # genotype definition line
+        } # header line
+      else  # variant lines
+        {
+          $nvariantlines++;
+          my @cols = split( /\t/, $aline );
+          for my $i ( 9 .. $#cols )
+            {
+              my @parts = split( /:/, $cols[$i] );
+              my $gt = $parts[0];
+              my @nreads;
+              if ( $parts[1] )
+                {
+                  @nreads = split( /,/, $parts[1] );
+                  for my $j ( 0..$#nreads )
+                    { $counts[$i][$j] += $nreads[$j]; }
+                  if ( $#nreads > $maxallele ) { $maxallele = $#nreads; }
+                }
+            }
+        } # else variantlines
+    } # while <$INF>
+  stdclose ( $INF );
+
+  # generate report
+  print $OUTF "\tNumbers of reads for each allele\n";
+  print $OUTF 'Taxon';
+  for my $i ( 0 .. $maxallele )
+    { print $OUTF "\t", $i; }
+  print $OUTF "\n";
+
+  for my $i ( 9 .. $#header )
+    {
+      print $OUTF $header[$i];
+      for my $j ( 0 .. $maxallele )
+        { print $OUTF "\t", $counts[$i]->[$j] // 0; }
+      print $OUTF "\n";
+    }
+
+  stdclose ( $OUTF );
+} # sub task_readcounts
+
+
+
+###############################################################
+sub downsamplewindow { my ( $FH, $variantsperwindow, @variants ) = @_;
+###############################################################
+# random subset of variants
+  my $nsaved = 0;
+  my @selected;
+  if ( @variants )
+    {
+      if ( scalar(@variants) > $variantsperwindow )
+        {
+          my @shuffledindices = shuffle(0..$#variants);
+          for my $i ( 0..$variantsperwindow-1 )
+            { push( @selected, $variants[$shuffledindices[$i]] ); }
+        }
+      else
+        { @selected = @variants; }
+      foreach my $variant ( @selected )
+        {
+          print $FH $variant, "\n";
+          $nsaved++;
+        }
+    }
+  return( $nsaved );
+} # sub downsamplewindow
+
+
+
+###############################################################
+sub indexvcf { my ( $filename ) = @_;
+###############################################################
+  unless ( $quiet ) { print "Indexing \"$filename\"\n"; }
+  my $cmd = "tabix -p vcf \"$filename\"";
+  run( $cmd );
+} # sub indexvcf
+
+
+
+############################################################
+sub debugmsg { my ( $text, $noreturn, $nolinenum ) = @_;
+############################################################
+  if ( $debug )
+    {
+      my ($package, $filename, $line, $sub) = caller(0);
+      unless ( $nolinenum ) { $text = "Line $line: " . $text; }
+      if ( ! ( $noreturn ) ) { $text .= "\n"; }
+      print $text;
+    } # if ( $debug )
+} # sub debugmsg
+
+
+
+###############################################################
+sub timestr {
+###############################################################
+  @_ = localtime(shift || time);
+  return(sprintf("%04d/%02d/%02d %02d:%02d", $_[5]+1900, $_[4]+1, $_[3], @_[2,1]));
+} # sub timestr
+
+
+
+###############################################################
+sub commify {
+###############################################################
+# http://perldoc.perl.org/perlfaq5.html#How-can-I-output-my-numbers-with-commas
+  local $_ = shift;
+  1 while s/^([-+]?\d+)(\d{3})/$1,$2/;
+  return $_;
+} # commify
+
+
+
+###############################################################
+sub stdopen { my ( $mode, $filename, $extratext ) = @_;
+###############################################################
+# a replacement for the three-parameter open which also allows
+# the use of "-" as the file name to mean STDIN or STDOUT
+  my $fh;  # the file handle
+  if ( $filename eq "-" )  # only exact match to "-" has special meaning
+    {
+      if ( $mode =~ m/>/ )
+        { $fh = *STDOUT }
+      else
+        { $fh = *STDIN }
+    }
+  else
+    {
+      # supplemental passed text for error messages, need one more space
+      if ( defined $extratext )
+        { $extratext .= " " }
+      else
+        { $extratext = "" }
+
+      my $text;  # this is only used for error message
+      if ( $mode =~ m/^\+?>>/ )  # ">>" or "+>>"
+        { $text = "append" }
+      elsif ( $mode =~ m/^\+?>/ )  # ">" or "+>"
+        { $text = "output" }
+      elsif ( $mode =~ m/^\+?</ )  # "<" or "+<"
+        { $text = "input" }
+      elsif ( $mode eq "-|" )
+        { $text = "piped input" }
+      elsif ( $mode eq "|-" )
+        { $text = "piped output" }
+      else
+        { die "Error, unsupported file mode \"$mode\" specified to stdopen( $mode, $filename, $extratext )\n"; }
+
+      # if file name ends in ".gz", gzip compression is assumed, and handle it transparently
+      if ( $filename =~ m/\.gz$/ )
+        {
+          if ( $mode =~ m/^>$/ ) # output mode
+            { $mode = "|-"; $filename = "$gzipbin -c > \"$filename\""; }
+          elsif ( $mode =~ m/^<$/ ) # input mode
+            { $mode = "-|"; $filename = "gunzip -c \"$filename\""; }
+          else
+            { die "Error, can't handle gzip compression with mode \"$mode\" for file \"filename\"\n"; }
+        } # if gzip compressed file
+      open ( $fh, $mode, $filename ) or die ( "Error opening ${extratext}file \"$filename\" for $text: $!\n" );
+    }
+  # return the opened file handle to the caller
+  return $fh;
+} # sub stdopen
+
+
+
+###############################################################
+sub stdclose { my ( $fh ) = @_;
+###############################################################
+# same as built-in close, except in case of STDIN or STDOUT,
+# and in this case the file handle is not closed
+
+  unless ( fileno($fh) <= 2 )  # if file number is this low, is stdin or stdout or stderr
+    { close ( $fh ) or die ( "Error closing file handle: $!\n" ); }
+
+} # sub stdclose
+
+
+
+###############################################################
+sub loadfasta { my ( $infilename, $stripreturns ) = @_;
+###############################################################
+# load a single FASTA file into an array of hashes to separate header and sequence portion
+# e.g. $seq[3]->{hdr} contains the header of the fourth sequence, $seq[3]->{seq} contains the sequence
+# and the ">" is stripped off of the header
+  my @seq;
+  my $count = 0;  # number of sequences loaded
+  my $mode = "<";
+  if ( $infilename =~ m/\.gz$/ )
+    { $mode = "-|"; $infilename = "gunzip -c \"$infilename\""; }
+  open my $INF,$mode,$infilename or die "Error opening input FASTA file \"$infilename\": $!\n";
+  while ( my $aline = <$INF> )
+    {
+      if ( $aline =~ m/^>(.*)$/ )
+        {
+          $aline =~ s/[\r\n]//g;
+          $aline =~ s/^>//;
+          $count++;
+          $seq[$count-1]->{hdr} = $aline;
+        }
+      else
+        {
+          if ( $stripreturns ) { $aline =~ s/[\r\n]//g; }
+          $seq[$count-1]->{seq} .= $aline;
+        }
+    } # while ( my $aline = <$INF> )
+  close $INF;
+  return @seq;
+} # sub loadfasta
+
+
+
+###############################################################
+sub savefasta { my ( $outfilename, $arrayref, $addreturns ) = @_;
+###############################################################
+  # save a FASTA file in a hash as described by loadfasta above
+  # addreturns is the desired wrap length, or undefined or zero for no wrapping
+  open my $OUTF,">",$outfilename or die "Error creating output FASTA file \"$outfilename\": $!\n";
+  foreach my $seqref ( @{$arrayref} )
+    {
+      next unless ( defined $seqref );
+      print $OUTF ">", $seqref->{"hdr"}, "\n";
+      my $s = $seqref->{"seq"};
+      if ( $addreturns )
+        { $s =~ s/(.{$addreturns})/$1\n/g; }
+      print $OUTF $s, "\n";
+    } # foreach my $seqref ( @{$arrayref} )
+  close $OUTF;
+} # sub savefasta
+
+
+
+###############################################################
+sub indexfasta { my ( $seqref, $stripheaders ) = @_;
+###############################################################
+# if $stripheaders is true, remove anything in header after
+# the first white space. Returns a hash reference, key is
+# header, value is array index
+  my %index;
+  for my $i ( 0..$#{$seqref} )
+    {
+      my $hdr = $seqref->[$i]->{'hdr'};
+      if ( $stripheaders ) { $hdr =~ s/\s.*$//; }
+      if ( defined $index{$hdr} ) { die "Error, duplicate header \"$hdr\" while indexing\n"; }
+      $index{$hdr} = $i;
+    }
+  return \%index
+} # sub indexfasta
+
+
+
+###############################################################
+sub run { my ( $cmd ) = @_;
+###############################################################
+  debugmsg ( "Running command \"$cmd\"" );
+  my $result = system ( $cmd );
+  if ( $result ) { die "Error $result running command \"$cmd\"\n"; }
+} # sub run
+
+
+
+# eof

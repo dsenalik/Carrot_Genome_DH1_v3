@@ -1,0 +1,112 @@
+
+############################################## -> R 
+# install packages (as needed) & load to library https://vbaliga.github.io/
+  package.check <- lapply(
+    Pack.To.Do,
+    FUN = function(x) {
+      if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)}})
+
+#load genotype file
+geno <- vroom('Dauc.C1.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR1", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+
+source("http://zzlab.net/GAPIT/GAPIT.library.R")
+source("http://zzlab.net/GAPIT/gapit_functions.txt")
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C2.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR2", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C3.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR3", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C4.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR4", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C5.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR5", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C6.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR6", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C7.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR7", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C8.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR8", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+#########################################################
+#load genotype file
+geno <- vroom('Dauc.C9.hmp.txt', col_names=FALSE)
+
+geno[,3] <- mutate_if(geno[,3],
+                        is.character,
+                        str_replace_all,pattern = "DCARV3_CHR9", replacement="")
+geno <- geno[!is.na(geno$X3),]
+
+myGAPIT <- GAPIT(G=geno, output.numerical=TRUE)
+
+quit()

@@ -1,0 +1,11 @@
+Filter One:
+vcftools --gzvcf kevinG.d5.vcf.gz /
+ --max-missing 0.3 /
+ --minDP 5 /
+ --remove-indels / 
+ --min-alleles 2 /
+ --max-alleles 2 /
+ --maf 0.05 / 
+ --max-maf 0.95 /
+ --recode /
+ --stdout | bgzip -c > KevinG.V3.filt1.vcf.gz

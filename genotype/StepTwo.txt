@@ -1,0 +1,7 @@
+# Only allow hets at frequency of 0.3 - 0.7
+perl bb.vcf /
+ --infile= "KevinG.V3.filt1.vcf.gz" /
+ --outfile="KevG.V3.filt1.hetna.vcf.gz" /
+ --task=het /
+ --minratio=0.3 /
+ --maxratio= 0.7

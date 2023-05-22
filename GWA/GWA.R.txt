@@ -1,0 +1,81 @@
+# load libraries
+chooseCRANmirror(ind=73)
+# Load packages
+Pckg.Lst <-c("vroom","readxl","tidyverse", "bigmemory", "biganalytics", "parallel", "MASS")
+      package.check <- lapply(
+        Pckg.Lst,
+        FUN = function(x) {
+        if (!require(x, character.only = TRUE)) {
+          install.packages(x, dependencies = TRUE)
+        library(x, character.only = TRUE)}})
+
+# load gapit functions to convert to numeric format.
+source("http://zzlab.net/GAPIT/GAPIT.library.R")
+source("http://zzlab.net/GAPIT/gapit_functions.txt")
+        # I made updates so the writing the output takes less time
+source("../Input.dat/Bill.Truncated.GAPIT.Res.txt")
+
+# Combine all numeric input genotypic data
+C1.dat <- vroom("Chr01/GAPIT.Genotype.Numerical.txt", col_names=T)
+C1.map <- vroom("Chr01/GAPIT.Genotype.map.txt", col_names=T)
+C1.map$Chromosome <- 1
+C2.dat <- vroom("Chr02/GAPIT.Genotype.Numerical.txt", col_names=T)
+C2.map <- vroom("Chr02/GAPIT.Genotype.map.txt", col_names=T)
+C2.map$Chromosome <- 2
+C3.dat <- vroom("Chr03/GAPIT.Genotype.Numerical.txt", col_names=T)
+C3.map <- vroom("Chr03/GAPIT.Genotype.map.txt", col_names=T)
+C3.map$Chromosome <- 3
+C4.dat <- vroom("Chr04/GAPIT.Genotype.Numerical.txt", col_names=T)
+C4.map <- vroom("Chr04/GAPIT.Genotype.map.txt", col_names=T)
+C4.map$Chromosome <- 4
+C5.dat <- vroom("Chr05/GAPIT.Genotype.Numerical.txt", col_names=T)
+C5.map <- vroom("Chr05/GAPIT.Genotype.map.txt", col_names=T)
+C5.map$Chromosome <- 5
+C6.dat <- vroom("Chr06/GAPIT.Genotype.Numerical.txt", col_names=T)
+C6.map <- vroom("Chr06/GAPIT.Genotype.map.txt", col_names=T)
+C6.map$Chromosome <- 6
+C7.dat <- vroom("Chr07/GAPIT.Genotype.Numerical.txt", col_names=T)
+C7.map <- vroom("Chr07/GAPIT.Genotype.map.txt", col_names=T)
+C7.map$Chromosome <- 7
+C8.dat <- vroom("Chr08/GAPIT.Genotype.Numerical.txt", col_names=T)
+C8.map <- vroom("Chr08/GAPIT.Genotype.map.txt", col_names=T)
+C8.map$Chromosome <- 8
+C9.dat <- vroom("Chr09/GAPIT.Genotype.Numerical.txt", col_names=T)
+C9.map <- vroom("GAPIT.Num.Con/Chr09/GAPIT.Genotype.map.txt", col_names=T)
+C9.map$Chromosome <- 9
+mast.map <- rbind(C1.map, C2.map, C3.map, C4.map, C5.map, C6.map, C7.map, C8.map, C9.map)
+C2.dat <- C2.dat[,-1]
+C3.dat <- C3.dat[,-1]
+C4.dat <- C4.dat[,-1]
+C5.dat <- C5.dat[,-1]
+C6.dat <- C6.dat[,-1]
+C7.dat <- C7.dat[,-1]
+C8.dat <- C8.dat[,-1]
+C9.dat <- C9.dat[,-1]
+mast.dat <- cbind(C1.dat, C2.dat, C3.dat, C4.dat, C5.dat, C6.dat, C7.dat, C8.dat, C9.dat)
+
+#load kinship file calcualted while the file was being converted to numeric
+myKI <- read.csv("GAPIT.Kin.VanRaden.csv", head=F)
+
+#load phenotype file
+pheno <- read_csv("GWA.Phenotype.csv", col_names=T)
+pheno <- pheno[,c(1,4,9,10] 
+#convert genotype file to dataframe from tibble
+mast.dat <- as.data.frame(mast.dat)
+# convert phenotype to dataframe
+pheno <- as.data.frame(pheno)
+# convert kinship file to dataframe
+myKI <- as.data.frame(myKI)
+
+# read PCA
+CV.pop <- read.csv("GAPIT.PCA.csv", head=T)
+
+# run GAPIT model
+myGAPIT <- GAPIT(
+  Y=pheno,
+  GD=mast.dat,
+  GM=mast.map,
+  KI=myKI,
+  CV=CV.pop,
+  SNP.MAF = 0.05, # reset this threshold. Phenotype filtering, and resulting samples made initial MAF 0.05 less effective. Reset in GAPIT.
+  model="MLM")

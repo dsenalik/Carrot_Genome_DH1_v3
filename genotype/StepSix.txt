@@ -1,0 +1,12 @@
+module load vcftools/0.1.16
+module load tabix/1.3.2
+# options for how to filter VCF file
+vcftools --gzvcf ../Beagle.impute/Dauc.C1.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C1.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C2.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C2.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C3.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C3.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C4.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C4.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C5.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C5.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C6.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C6.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C7.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C7.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C8.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C8.imp.filtx2.vcf.gz
+vcftools --gzvcf ../Beagle.impute/Dauc.C9.imp.vcf.vcf.gz  --max-missing 0.3 --minDP 5 --remove-indels --min-alleles 2 --max-alleles 2 --maf 0.05 --max-maf 0.95 --recode --stdout | bgzip -c > Dauc.C9.imp.filtx2.vcf.gz
