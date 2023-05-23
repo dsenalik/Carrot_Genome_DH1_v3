@@ -178,7 +178,7 @@ reference: Holt, C. & Yandell, M. MAKER2: an annotation pipeline and genome-data
 
 * AUGUSTUS (v2.5.5)
 
-* SNAP (v?) \
+* SNAP (Commit of June 3, 2019) \
 source: [https://github.com/KorfLab/SNAP](https://github.com/KorfLab/SNAP)
 
 ### Gene Model Prediction with GeMoMa
@@ -196,7 +196,7 @@ Reference: Gremme, G., Brendel, V., Sparks, M. E. & Kurtz, S. Engineering a soft
 
 ### Gene annotation and quality verification
 
-* Blast2Go (v?) \
+* Blast2Go (OmicsBox 3.0.29) \
 reference: Conesa, A. et al. Blast2GO: a universal tool for annotation, visualization and analysis in functional genomics research. Bioinformatics 21, 3674-3676, [doi:10.1093/bioinformatics/bti610](https://doi.org/10.1093/bioinformatics/bti610) (2005).
 
 * PlantTFcat (Downloaded on Dec 2020) \
