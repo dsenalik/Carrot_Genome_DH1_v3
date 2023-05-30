@@ -24,7 +24,7 @@ This repository contains scripts used for the following publication: \
 *source:* [https://github.com/marbl/canu/releases](https://github.com/marbl/canu/releases) \
 *reference:* Koren, S. et al. Canu: scalable and accurate long-read assembly via adaptive k-mer weighting and repeat separation. Genome Res 27, 722-736, [doi:10.1101/gr.215087.116](https://doi.org/10.1101/gr.215087.116) (2017).
 
-* Arrow as implemented in GenomicConsensus (v?) \
+* Arrow as implemented in GenomicConsensus \
 *source:* [https://github.com/PacificBiosciences/GenomicConsensus](https://github.com/PacificBiosciences/GenomicConsensus)
 
 * Pilon (V1.23) \
@@ -82,11 +82,18 @@ filtered for MAPQ>=10 and marker sequences with mapping frequency of >1 were dis
 
 ### Organellar Genome Assembly
 
-* MUMmer (v?) \
+* MUMmer (v4.0.0beta2) \
+*script:* [gene_prediction/15.dcarv3analysis.sh](gene_prediction/15.dcarv3analysis.sh) \
 *reference:* Marçais, G. et al. MUMmer4: A fast and versatile genome alignment system. PLOS Computational Biology 14, e1005944, [doi:10.1371/journal.pcbi.1005944](https::/doi.org/10.1371/journal.pcbi.1005944) (2018).
 
-* UCSC Liftover (v?) \
-*Kent, W. J. et al. The human genome browser at UCSC. Genome Res 12, 996-1006, doi:10.1101/gr.229102 (2002).
+* Blat (v35) \
+*source:* [https://hgwdev.gi.ucsc.edu/~kent](https://hgwdev.gi.ucsc.edu/~kent) \
+*reference:* Kent, W. J. et al. The human genome browser at UCSC. Genome Res 12, 996-1006, [doi:10.1101/gr.229102](https://doi.org10.1101/gr.229102) (2002).
+
+* UCSC Liftover (v 2006-04-26) \
+*script:* [gene_prediction/08.lift.sh](gene_prediction/08.lift.sh) \
+*source:* [https://hgwdev.gi.ucsc.edu/~kent](https://hgwdev.gi.ucsc.edu/~kent) \
+*reference:* Kent, W. J. et al. The human genome browser at UCSC. Genome Res 12, 996-1006, [doi:10.1101/gr.229102](https://doi.org10.1101/gr.229102) (2002).
 
 
 ## Assembly Quality Verification
