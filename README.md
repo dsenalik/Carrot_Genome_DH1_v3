@@ -198,41 +198,39 @@ filtered for MAPQ>=10 and marker sequences with mapping frequency of >1 were dis
 ### Gene Model Prediction with MAKER
 
 * MAKER (v3.01.03) \
+*reference:* Holt, C. & Yandell, M. MAKER2: an annotation pipeline and genome-database management tool for second-generation genome projects. BMC Bioinformatics 12, 491, [doi:10.1186/1471-2105-12-491](https://doi.org/10.1186/1471-2105-12-491) (2011). \
 *parameters:* \
-```
-est_pass=0
-altest_pass=0
-protein_pass=0
-rm_pass=0
-model_pass=0
-pred_pass=0
-other_pass=0
-prok_rm=0
-softmask=1
-est2genome=0
-protein2genome=0
-trna=0
-unmask=1
-cpus=1
-max_dna_len=500000
-min_contig=1
-pred_flank=200
-pred_stats=0
-AED_threshold=1
-min_protein=0
-alt_splice=0
-always_complete=0
-map_forward=0
-keep_preds=0
-split_hit=2500
-single_exon=0
-single_length=100
-correct_est_fusion=0
-tries=2
-clean_try=0
-clean_up=0
-``` \
-*reference:* Holt, C. & Yandell, M. MAKER2: an annotation pipeline and genome-database management tool for second-generation genome projects. BMC Bioinformatics 12, 491, [doi:10.1186/1471-2105-12-491](https://doi.org/10.1186/1471-2105-12-491) (2011).
+`est_pass=0 \
+altest_pass=0 \
+protein_pass=0 \
+rm_pass=0 \
+model_pass=0 \
+pred_pass=0 \
+other_pass=0 \
+prok_rm=0 \
+softmask=1 \
+est2genome=0 \
+protein2genome=0 \
+trna=0 \
+unmask=1 \
+cpus=1 \
+max_dna_len=500000 \
+min_contig=1 \
+pred_flank=200 \
+pred_stats=0 \
+AED_threshold=1 \
+min_protein=0 \
+alt_splice=0 \
+always_complete=0 \
+map_forward=0 \
+keep_preds=0 \
+split_hit=2500 \
+single_exon=0 \
+single_length=100 \
+correct_est_fusion=0 \
+tries=2 \
+clean_try=0 \
+clean_up=0`
 
 * AUGUSTUS (v2.5.5)
 
