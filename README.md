@@ -168,7 +168,10 @@ filtered for MAPQ>=10 and marker sequences with mapping frequency of >1 were dis
 * LTR Assembly Index (LAI) \
 *reference:* Ou, S., Chen, J. & Jiang, N. Assessing genome assembly quality using the LTR Assembly Index (LAI). Nucleic Acids Research 46, e126-e126, [doi:10.1093/nar/gky730](https://doi.org/10.1093/nar/gky730) (2018).
 
+### Detection of centromere repeats
 
+* custom script [/centromere/31.centromere.location.sh](/centromere/31.centromere.location.sh) \
+*image files:* [/centromere/](/centromere/)
 
 ## Gene Prediction and Genome Annotation
 
@@ -354,6 +357,29 @@ example joint genotyping script for one region: [variant_detection/template.join
 
 * VCFtools (v0.1.14) \
 *reference:* Weir, B. S. & Cockerham, C. C. Estimating F-Statistics for the Analysis of Population Structure. Evolution 38, 1358-1370, [doi:10.2307/2408641](https://doi.org/10.2307/2408641) (1984).
+
+## Nucleotide diversity using Pixy
+
+* bcftools (v1.10.2) \
+*`call` parameters:* `-m -Oz -f GQ` \
+*reference:* Danecek, P. et al. Twelve years of SAMtools and BCFtools. GigaScience 10, giab008, [doi:10.1093/gigascience/giab008](https://doi.org/10.1093/gigascience/giab008) (2021).
+
+* The Genome Analysis Toolkit (GATK) v4.4.0.0 \
+*`SelectVariants` parameters:* `-select-type NO_VARIATION` \
+*reference:* McKenna, A. et al. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome Res 20, 1297-1303, [doi:10.1101/gr.107524.110](https://doi.org/10.1101/gr.107524.110) (2010).
+
+* VCFtools (v0.1.14) \
+*parameters:* `--remove-indels --max-missing 0.8 --minDP 800 --maxDP 8000` \
+*reference:* Danecek, P. et al. The variant call format and VCFtools. Bioinformatics (Oxford, England) 27, 2156-2158, [doi:10.1093/bioinformatics/btr330](https://doi.org/10.1093/bioinformatics/btr330) (2011).
+
+* Pixy (v. 1.2.7.beta1) [https://zenodo.org/record/6551490](https://zenodo.org/record/6551490) \
+*reference:* Korunes, K.L. and Samuk, K. (2021), pixy: Unbiased estimation of nucleotide diversity and divergence in the presence of missing data. Molecular Ecology Resources. Accepted Author Manuscript. [https://doi.org/10.1111/1755-0998.13326](https://doi.org/10.1111/1755-0998.13326)
+
+* Scripts \
+Merge with: [nucleotide_diversity/23.filter.kevinG.sh](nucleotide_diversity/23.filter.kevinG.sh) \
+Run pixy with: [nucleotide_diversity/23.pixy.G.sh](nucleotide_diversity/23.pixy.G.sh) \
+Summarize with: [nucleotide_diversity/23.summarize.G.pl](nucleotide_diversity/23.summarize.G.pl) \
+Summary file: [nucleotide_diversity/23.pixy.G.summary.tsv](nucleotide_diversity/23.pixy.G.summary.tsv)
 
 ### LD Decay
 
