@@ -170,6 +170,14 @@ filtered for MAPQ>=10 and marker sequences with mapping frequency of >1 were dis
 
 ### Detection of centromere repeats
 
+* Centromere motif used
+```
+TCAACTTCAAACGAGTCTGGAATGAAGCTACAAGTTGTTT
+CCAACTTCAATCTAGYCAATAATGAAGCWACAAGTTGTTT
+CCRGGCTCAAACGAGTCAAGAATGAAACTACAAGTTGATT
+CYAATTTYAAAC AACCGAAAATGAAGCTACAAGTTGTTT
+```
+
 * custom script [/centromere/31.centromere.location.sh](/centromere/31.centromere.location.sh) \
 *image files:* [/centromere/](/centromere/)
 
@@ -361,11 +369,11 @@ example joint genotyping script for one region: [variant_detection/template.join
 ## Nucleotide diversity using Pixy
 
 * bcftools (v1.10.2) \
-*`call` parameters:* `-m -Oz -f GQ` \
+`call` *parameters:* `-m -Oz -f GQ` \
 *reference:* Danecek, P. et al. Twelve years of SAMtools and BCFtools. GigaScience 10, giab008, [doi:10.1093/gigascience/giab008](https://doi.org/10.1093/gigascience/giab008) (2021).
 
 * The Genome Analysis Toolkit (GATK) v4.4.0.0 \
-*`SelectVariants` parameters:* `-select-type NO_VARIATION` \
+`SelectVariants` *parameters:* `-select-type NO_VARIATION` \
 *reference:* McKenna, A. et al. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome Res 20, 1297-1303, [doi:10.1101/gr.107524.110](https://doi.org/10.1101/gr.107524.110) (2010).
 
 * VCFtools (v0.1.14) \
