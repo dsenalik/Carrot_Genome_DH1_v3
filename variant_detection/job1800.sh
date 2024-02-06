@@ -5,7 +5,7 @@
 #SBATCH -n 4                  #number of cores/tasks in this job; there are 20 physical cores on a node * 2 = 40 logical cores
 #SBATCH -t 5-00:00:00         #time allocated for this job days-hours:mins:seconds 168h=7d
 #SBATCH --mem-per-cpu 6GB     #default is 3.2GB
-#SBATCH --mail-user=dsenalik@gmail.com   #enter your email address to receive emails
+#SBATCH --mail-user=example@zombo.com   #enter your email address to receive emails
 #SBATCH --mail-type=FAIL      #BEGIN,END,FAIL will receive an email when job starts, ends or fails
 #SBATCH -o "%j.%N.stdout"     #standard out %j adds job number to outputfile name and %N adds the node
 #SBATCH -e "%j.%N.stderr"     #optional but it prints our standard error
@@ -76,9 +76,9 @@ for uid in $uids ; do
     echo "+++ Downloading bam file for \"$uid\""
     echo '#!/usr/bin/expect
 set timeout 1800
-spawn sftp ceres@nas1.vcru.wisc.edu
-expect "ceres@nas1.vcru.wisc.edu'\''s password: "
-send "78;Us_6qwe908x\n"
+spawn sftp ceres@ourserver.edu
+expect "ceres@ourserver.edu'\''s password: "
+send "supersecretpassword\n"
 expect "sftp>"
 send "get '$ftpsource'/'$uid'.ba?\n"
 expect "sftp>"
@@ -147,9 +147,9 @@ echo
 # upload vcf files to our NAS server using FTP
 echo '#!/usr/bin/expect
 set timeout 1800
-spawn sftp ceres@nas1.vcru.wisc.edu
-expect "ceres@nas1.vcru.wisc.edu'\''s password: "
-send "78;Us_6qwe908x\n"
+spawn sftp ceres@ourserver.edu
+expect "ceres@ourserver.edu'\''s password: "
+send "supersecretpassword\n"
 expect "sftp>"
 send "put *.log.gz '$ftpdest'/logs/\n"
 expect "sftp>"
